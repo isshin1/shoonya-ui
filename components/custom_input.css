@@ -1,0 +1,5 @@
+/* styles.css */
+.input-no-ring:focus {
+    --tw-ring-offset-width: 0;
+    --tw-ring-shadow: none;
+  }

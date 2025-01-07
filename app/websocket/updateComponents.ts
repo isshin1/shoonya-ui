@@ -4,20 +4,21 @@ type AtmData = {
   price: number
   symbol: string
   token: number
+  tt: number
 }
 
 type Position = {
-    id: string
-    tsym: string
-    type: 'call' | 'put'
-    daybuyavgprc: string
-    totsellavgprc: string
-    currentPrice: string
-    exitPrice: string
-    daybuyqty: string
-    netqty: string
-    status: 'active' | 'closed'
-  }
+  id: string
+  tsym: string
+  type: 'call' | 'put'
+  daybuyavgprc: string
+  totsellavgprc: string
+  currentPrice: string
+  exitPrice: string
+  daybuyqty: string
+  netqty: string
+  status: 'active' | 'closed'
+}
 
 type UpdateDataProps = {
   setAtmCall: Dispatch<SetStateAction<AtmData>>
@@ -43,40 +44,34 @@ export function updateData(message: any, { setAtmCall, setAtmPut, setOpenOrders,
     console.log("Changed latest symbols");
   }
 
-  if (message.type === 'price') {
+  if (message.token && message.price && message.tt) {
     setAtmCall(prevState => {
       if (message.token === prevState.token) {
-        return { ...prevState, price: message.price };
+        return { ...prevState, price: message.price, tt: message.tt };
       }
       return prevState;
     });
     
     setAtmPut(prevState => {
       if (message.token === prevState.token) {
-        return { ...prevState, price: message.price };
+        return { ...prevState, price: message.price, tt: message.tt };
       }
       return prevState;
     });
   }
 
   if (message.type === 'order') {
-    // console.log("Order update received");
     const orders = message.orders;
-    if (orders.length === 0) {
-    //   console.log("No orders");
-    } else {
-      setOpenOrders(orders);
-    }
+    setOpenOrders(orders || []); // Set to an empty array if orders is null or undefined
+    console.log("Updated orders:", orders);
   }
 
   if (message.type === 'position') {
-    // console.log("Position update received");
     const positions = message.positions;
     if (positions == null || positions.length === 0) {
-    //   console.log("No positions");
+      console.log("No positions");
     } else {
       setPositions(positions);
     }
   }
 }
-

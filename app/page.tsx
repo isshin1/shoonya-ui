@@ -1,10 +1,11 @@
 'use client'
 
+import {  } from '@stitches/react';
 import axios from 'axios';
 import { useState, useEffect, useCallback } from 'react'
 import { useToast } from "@/components/ui/use-toast"
 import { AppSidebar } from '@/components/app-sidebar'
-import { SidebarInset, SidebarTrigger, SidebarProvider } from '@/components/ui/sidebar'
+import { SidebarInset, SidebarTrigger, SidebarProvider, DialogOverlay as DefaultDialogOverlay } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
@@ -32,7 +33,7 @@ import dynamic from 'next/dynamic'
 import { fetchOptionSymbols, fetchOptionPrices, buyOption} from './api/options';
 import { Textarea } from "@/components/ui/textarea"
 import { fetchQuote } from './api/fetchQuote';
-import { initializeWebSocket, closeWebSocket, subscribeToRealTimeData, unsubscribeFromRealTimeData, setUpdateDataCallback } from './websocket/websocket';
+import { closeWebSocket, initializeWebSocket } from './websocket/websocket';
 import Link from 'next/link'
 import { RealTimeChart } from '../components/chart'
 import { fetchOpenOrders, cancelOrder, fetchOpenOrdersCallback } from './api/orders';
@@ -43,6 +44,7 @@ import { PositionsCard } from '@/components/positions'
 import { updateData } from './websocket/updateComponents';
 
 const TradingViewWidget = dynamic(() => import('@/components/trading-view-widget'), { ssr: false })
+
 
 type Position = {
   id: string
@@ -87,8 +89,8 @@ function convertString(inputString: string) {
 export default function Home() {
   const [positions, setPositions] = useState<Position[]>([])
   const [openOrders, setOpenOrders] = useState<OpenOrder[]>([])
-  const [atmCall, setAtmCall] = useState<{ price: number; symbol: string; token: number }>({ price: 0, symbol: '', token: 0 })
-  const [atmPut, setAtmPut] = useState<{ price: number; symbol: string; token: number }>({ price: 0, symbol: '', token: 0 })
+  const [atmCall, setAtmCall] = useState<{ price: number; symbol: string; token: number; tt: number }>({ price: 0, symbol: '', token: 0, tt: 0 })
+  const [atmPut, setAtmPut] = useState<{ price: number; symbol: string; token: number; tt: number }>({ price: 0, symbol: '', token: 0, tt: 0 })
   const [isAddMoneyOpen, setIsAddMoneyOpen] = useState(false)
   const [isEndSessionOpen, setIsEndSessionOpen] = useState(false)
   const [amount, setAmount] = useState('')
@@ -113,9 +115,10 @@ export default function Home() {
     tradeType: '',
   })
   const [plan, setPlan] = useState('')
-  const [isModifyOrderOpen, setIsModifyOrderOpen] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<OpenOrder | null>(null)
   const [newPrice, setNewPrice] = useState<string>('')
+  const [isModifyOrderOpen, setIsModifyOrderOpen] = useState(false) // Added state for Modify Order dialog
+  const [timerEnd, setTimerEnd] = useState<number | null>(null); // Added timer state
 
   const { toast } = useToast()
 
@@ -169,27 +172,28 @@ export default function Home() {
     if (!selectedOrder) return;
 
     setIsLoading(prev => ({ ...prev, modifyOrder: true }));
-    setIsModifyOrderOpen(false);
+    setIsModifyOrderOpen(false); // Close the dialog immediately
 
     try {
       const response = await axios.post(`http://localhost:8090/api/modifyOrder/${selectedOrder.norenordno}/${newPrice}`);
       if (response.status === 200) {
         toast({
-          title: "Order Modified",
-          description: `Order ${selectedOrder.norenordno} has been modified with new price ₹${newPrice}.`,
+          title: "Order Modification Sent",
+          description: `Modification request for order ${selectedOrder.norenordno} has been sent.`,
         });
         fetchOpenOrdersCallback(setOpenOrders, setIsLoading, toast);
       } else {
-        throw new Error('Failed to modify order');
+        throw new Error('Failed to send modify order request');
       }
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.response?.data?.message || "Failed to modify order. Please try again.",
+        description: error.response?.data?.message || "Failed to send modify order request. Please try again.",
         variant: "destructive",
       });
     } finally {
       setIsLoading(prev => ({ ...prev, modifyOrder: false }));
+      setSelectedOrder(null);
       setNewPrice('');
     }
   };
@@ -199,14 +203,14 @@ export default function Home() {
   }, [toast]);
 
   useEffect(() => {
-    const socket = initializeWebSocket();
-
-    setUpdateDataCallback((message) => {
+    const handleWebSocketMessage = (message: any) => {
       updateData(message, { setAtmCall, setAtmPut, setOpenOrders, setPositions });
-    });
+    };
+
+    const socket = initializeWebSocket(handleWebSocketMessage);
 
     return () => {
-      // closeWebSocket();
+      closeWebSocket();
     };
   }, []);
 
@@ -220,19 +224,70 @@ export default function Home() {
     };
   }, [fetchQuoteCallback]);
 
+  useEffect(() => {
+    if (isModifyOrderOpen) {
+      const inputElement = document.getElementById('newPrice');
+      if (inputElement) {
+        inputElement.focus();
+      }
+    }
+  }, [isModifyOrderOpen]);
+
+  const handleBuyOption = async (
+    type: 'call' | 'put',
+    orderType: OrderType,
+    price: string,
+    symbol: string
+  ) => {
+    const result = await buyOption(type, orderType, price, symbol, setIsLoading);
+    if (result.success && result.startTime) {
+      setTimerEnd(result.startTime + 15 * 60 * 1000); // 15 minutes in milliseconds
+    }
+  };
+
+  const Timer: React.FC<{ endTime: number }> = ({ endTime }) => {
+    const [timeLeft, setTimeLeft] = useState<number>(0);
+
+    useEffect(() => {
+      const interval = setInterval(() => {
+        const diff = endTime - Date.now();
+        setTimeLeft(diff > 0 ? diff : 0);
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }, [endTime]);
+
+    const minutes = Math.floor(timeLeft / 60000);
+    const seconds = Math.floor((timeLeft % 60000) / 1000);
+
+    return (
+      <span className="text-sm font-medium">
+        {minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}
+      </span>
+    );
+  };
+
+
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       <SidebarProvider defaultOpen={false}>
         <AppSidebar />
         <SidebarInset className="flex flex-col w-full">
           <header className="flex justify-between items-center p-4 border-b">
-            <div 
-              className="flex-1 text-center cursor-pointer p-2"
-              onClick={fetchQuoteCallback}
-            >
-              <p className="text-sm italic inline-block hover:bg-gray-100 px-2 py-1 rounded transition-colors">
-                {isLoading.quote ? 'Fetching quote...' : (quote || 'No quote available')}
-              </p>
+            <div className="flex items-center space-x-4">
+              {timerEnd && Date.now() < timerEnd && (
+                <div className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                  Next order in: <Timer endTime={timerEnd} />
+                </div>
+              )}
+              <div 
+                className="flex-1 text-center cursor-pointer p-2"
+                onClick={fetchQuoteCallback}
+              >
+                <p className="text-sm italic inline-block hover:bg-gray-100 px-2 py-1 rounded transition-colors">
+                  {isLoading.quote ? 'Fetching quote...' : (quote || 'No quote available')}
+                </p>
+              </div>
             </div>
             <div className="crate">
               <Dialog open={isAddMoneyOpen} onOpenChange={setIsAddMoneyOpen}>
@@ -308,12 +363,11 @@ export default function Home() {
                                   </TabsList>
                                   <TabsContent value="MKT" className="space-y-4 pt-4">
                                     <Button 
-                                      onClick={() => buyOption(
+                                      onClick={() => handleBuyOption(
                                         'call',
                                         orderType,
                                         callPrice,
-                                        atmCall.symbol,
-                                        setIsLoading
+                                        atmCall.symbol
                                       )} 
                                       className="w-full" 
                                       disabled={isLoading.buyOrder}
@@ -335,12 +389,11 @@ export default function Home() {
                                       />
                                     </div>
                                     <Button 
-                                      onClick={() => buyOption(
+                                      onClick={() => handleBuyOption(
                                         'call',
                                         orderType,
                                         callPrice,
-                                        atmCall.symbol,
-                                        setIsLoading
+                                        atmCall.symbol
                                       )} 
                                       className="w-full" 
                                       disabled={isLoading.buyOrder}
@@ -362,12 +415,11 @@ export default function Home() {
                                       />
                                     </div>
                                     <Button 
-                                      onClick={() => buyOption(
+                                      onClick={() => handleBuyOption(
                                         'call',
                                         orderType,
                                         callPrice,
-                                        atmCall.symbol,
-                                        setIsLoading
+                                        atmCall.symbol
                                       )} 
                                       className="w-full" 
                                       disabled={isLoading.buyOrder}
@@ -406,12 +458,11 @@ export default function Home() {
                                   </TabsList>
                                   <TabsContent value="MKT" className="space-y-4 pt-4">
                                     <Button 
-                                      onClick={() => buyOption(
+                                      onClick={() => handleBuyOption(
                                         'put',
                                         'MKT', 
                                         putPrice,
-                                        atmPut.symbol,
-                                        setIsLoading
+                                        atmPut.symbol
                                       )} 
                                       className="w-full" 
                                       disabled={isLoading.buyOrder}
@@ -430,12 +481,11 @@ export default function Home() {
                                       />
                                     </div>
                                     <Button 
-                                      onClick={() => buyOption(
+                                      onClick={() => handleBuyOption(
                                         'put',
                                         'LMT', 
                                         putPrice,
-                                        atmPut.symbol,
-                                        setIsLoading
+                                        atmPut.symbol
                                       )} 
                                       className="w-full" 
                                       disabled={isLoading.buyOrder}
@@ -457,12 +507,11 @@ export default function Home() {
                                       />
                                     </div>
                                     <Button 
-                                      onClick={() => buyOption(
+                                      onClick={() => handleBuyOption(
                                         'put',
                                         'SL-LMT', 
                                         putPrice,
-                                        atmPut.symbol,
-                                        setIsLoading
+                                        atmPut.symbol
                                       )} 
                                       className="w-full" 
                                       disabled={isLoading.buyOrder}
@@ -501,50 +550,50 @@ export default function Home() {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {openOrders.map((order) => (
-                                <TableRow key={order.norenordno}>
-                                  <TableCell className="font-medium">{order.tsym}</TableCell>
-                                  <TableCell>₹{order.prc}</TableCell>
-                                  <TableCell>{order.qty}</TableCell>
-                                  <TableCell>{order.prctyp}</TableCell>
-                                  <TableCell>
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="h-8 w-8 p-0">
-                                          <span className="sr-only">Open menu</span>
-                                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-                                            <circle cx="12" cy="12" r="1" />
-                                            <circle cx="12" cy="5" r="1" />
-                                            <circle cx="12" cy="19" r="1" />
-                                          </svg>
-                                        </Button>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => handleCancelOrderWrapper(order.norenordno)}>
-                                          Cancel Order
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => {
-                                          setSelectedOrder(order);
-                                          setNewPrice(order.prc);
-                                          setIsModifyOrderOpen(true);
-                                        }}>
-                                          Modify Order
-                                        </DropdownMenuItem>
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
-                                  </TableCell>
+                              {openOrders.length > 0 ? (
+                                openOrders.map((order) => (
+                                  <TableRow key={order.norenordno}>
+                                    <TableCell className="font-medium">{order.tsym}</TableCell>
+                                    <TableCell>₹{order.prc}</TableCell>
+                                    <TableCell>{order.qty}</TableCell>
+                                    <TableCell>{order.prctyp}</TableCell>
+                                    <TableCell>
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button variant="ghost" className="h-8 w-8 p-0">
+                                            <span className="sr-only">Open menu</span>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                                              <circle cx="12" cy="12" r="1" />
+                                              <circle cx="12" cy="5" r="1" />
+                                              <circle cx="12" cy="19" r="1" />
+                                            </svg>
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                          <DropdownMenuItem onClick={() => handleCancelOrderWrapper(order.norenordno)}>
+                                            Cancel Order
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => {
+                                            setSelectedOrder(order);
+                                            setNewPrice(order.prc);
+                                            setIsModifyOrderOpen(true); // Open the Modify Order dialog
+                                          }}>
+                                            Modify Order
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    </TableCell>
+                                  </TableRow>
+                                ))
+                              ) : (
+                                <TableRow>
+                                  <TableCell colSpan={5} className="text-center">No active orders</TableCell>
                                 </TableRow>
-                              ))}
+                              )}
                             </TableBody>
                           </Table>
                       </CardContent>
                     </Card>
-                    {/* <PlanInputs
-                      planInputs={planInputs}
-                      handlePlanInputChange={handlePlanInputChange}
-                      plan={plan}
-                      setPlan={setPlan}
-                    /> */}
                   </CardContent>
                 </Card>
               </div>
@@ -560,6 +609,10 @@ export default function Home() {
                       atmCallSymbol={atmCall.symbol}
                       atmPutSymbol={atmPut.symbol}
                       currentTab={currentTab}
+                      atmCallPrice={atmCall.price}
+                      atmPutPrice={atmPut.price}
+                      atmCallTt={atmCall.tt}
+                      atmPutTt={atmPut.tt}
                     />
                   </CardContent>
                 </Card>
@@ -569,8 +622,24 @@ export default function Home() {
           </div>
         </SidebarInset>
       </SidebarProvider>
-      <Dialog open={isModifyOrderOpen} onOpenChange={setIsModifyOrderOpen}>
-        <DialogContent>
+      <Dialog 
+        open={isModifyOrderOpen} 
+        onOpenChange={(open) => {
+          setIsModifyOrderOpen(open);
+          if (!open) {
+            setSelectedOrder(null);
+            setNewPrice('');
+          }
+        }}
+        modal={false}
+      >
+        <DialogContent 
+          className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-background rounded-lg shadow-lg p-6 w-full max-w-md mx-auto"
+          forceMount
+          onInteractOutside={(e) => {
+            e.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Modify Order</DialogTitle>
           </DialogHeader>
@@ -590,7 +659,7 @@ export default function Home() {
           </div>
           <DialogFooter>
             <Button onClick={modifyOrder} disabled={isLoading.modifyOrder}>
-              {isLoading.modifyOrder ? 'Modifying...' : 'Submit'}
+              {isLoading.modifyOrder ? 'Sending...' : 'Submit'}
             </Button>
           </DialogFooter>
         </DialogContent>

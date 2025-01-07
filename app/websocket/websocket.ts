@@ -1,9 +1,10 @@
 import { toast } from "@/components/ui/use-toast"
 import axios from 'axios';
+
 let socket: WebSocket | null = null;
 let updateDataCallback: ((message: any) => void) | null = null;
 
-export  function initializeWebSocket() {
+export function initializeWebSocket(callback: (message: any) => void) {
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
     return socket;
   }
@@ -13,23 +14,18 @@ export  function initializeWebSocket() {
   socket.onopen = () => {
     sendMessage("frontend connected");
     console.log('WebSocket connection established');
-    const response =  axios.post('http://localhost:8090/api/firstFetch', {
-      method: 'POST', // Specify the request method
+    axios.post('http://localhost:8090/api/firstFetch', {
+      method: 'POST',
       headers: {
-          'Content-Type': 'application/json' // Set the content type to JSON
+        'Content-Type': 'application/json'
       },
     });
-
   };
-
+  
   socket.onmessage = (event) => {
-    // console.log(event.data);
     const message = JSON.parse(event.data);
-    // console.log('Received message:', message);
-    if (typeof updateDataCallback === 'function') {
-      updateDataCallback(message);
-    } else {
-      console.error('updateDataCallback is not a function');
+    if (typeof callback === 'function') {
+      callback(message);
     }
 
     if (message.type === 'toast') {
@@ -45,14 +41,14 @@ export  function initializeWebSocket() {
   socket.onclose = () => {
     console.log('WebSocket connection closed');
     socket = null;
-    // Attempt to reconnect after 5 seconds
-    setTimeout(initializeWebSocket, 5000);
+    setTimeout(() => initializeWebSocket(callback), 5000);
   };
 
   socket.onerror = (error) => {
     console.error('WebSocket error:', error);
   };
 
+  updateDataCallback = callback;
   return socket;
 }
 
@@ -79,6 +75,3 @@ export function unsubscribeFromRealTimeData(symbol: string) {
   sendMessage({ type: 'unsubscribe', symbol });
 }
 
-export function setUpdateDataCallback(callback: (message: any) => void) {
-  updateDataCallback = callback;
-}

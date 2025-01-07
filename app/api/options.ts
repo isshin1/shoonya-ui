@@ -66,7 +66,7 @@ export const buyOption = async (
   price: string,
   symbol: string,
   setIsLoading: (value: React.SetStateAction<{ [key: string]: boolean }>) => void
-) => {
+): Promise<{ success: boolean; startTime?: number }> => {
   setIsLoading(prev => ({ ...prev, buyOrder: true }));
 
   if ((orderType === 'LMT' || orderType === 'SL-LMT') && !price) {
@@ -76,7 +76,7 @@ export const buyOption = async (
       variant: "destructive",
     });
     setIsLoading(prev => ({ ...prev, buyOrder: false }));
-    return;
+    return { success: false };
   }
 
   try {
@@ -85,11 +85,12 @@ export const buyOption = async (
     const responseBody = response.data;
 
     if (response.status === 200) {
-      // toast({
-      //   title: "Option Purchased",
-      //   description: `You have placed a ${orderType} ${type} order ${orderType !== 'MKT' ? `at ₹${price}` : ''}.`,
-      //   duration: 5000,
-      // });
+      toast({
+        title: "Order Placed",
+        description: `You have placed a ${orderType} ${type} order ${orderType !== 'MKT' ? `at ₹${price}` : ''}.`,
+        duration: 5000,
+      });
+      return { success: true, startTime: Date.now() };
     } else if (response.status === 406) {
       toast({
         title: "Not Allowed",
@@ -115,5 +116,7 @@ export const buyOption = async (
   } finally {
     setIsLoading(prev => ({ ...prev, buyOrder: false }));
   }
+
+  return { success: false };
 };
 

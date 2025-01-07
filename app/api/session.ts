@@ -2,7 +2,7 @@ import axios from 'axios';
 
 export const endSession = async () => {
   try {
-    const response = await axios.post('http://localhost:8090/api/test');
+    const response = await axios.post('http://localhost:8090/api/endSession');
     if (response.status === 200) {
       return { success: true, message: "Your trading session has been successfully ended." };
     } else {

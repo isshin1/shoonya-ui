@@ -41,40 +41,43 @@ export function RealTimeChart({ atmCallSymbol, atmPutSymbol, currentTab, atmCall
   const chartRef = useRef<IChartApi | null>(null);
   const chartDataRef = useRef<ChartData>({});
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(0);
+  //const [lastClosePrice, setLastClosePrice] = useState<{ [key: string]: number }>({});
 
   const updateChartData = useCallback((symbol: string, price: number, timestamp: number) => {
     if (chartDataRef.current[symbol]) {
-      const { series, currentCandle, priceLine } = chartDataRef.current[symbol];
+      const { series, currentCandle } = chartDataRef.current[symbol];
       const currentTime = timestamp;
       const minuteTimestamp = Math.floor(currentTime / 60) * 60 as UTCTimestamp;
 
       if (minuteTimestamp > currentCandle.time) {
-        // Create a new candle
+        // When creating a new candle, immediately use the last candle's close price
+        const previousClose = currentCandle.close;
+        
+        // Update the current candle one final time before creating new one
         if (currentCandle.time !== 0) {
           series.update(currentCandle);
         }
+
+        // Create new candle with previous close as open
         const newCandle: CandlestickData = {
           time: minuteTimestamp,
-          open: price,
+          open: previousClose, // Always use previous close as open
           high: price,
           low: price,
           close: price,
         };
         chartDataRef.current[symbol].currentCandle = newCandle;
       } else {
-        // Update the current candle
+        // Update current candle while maintaining the original open price
+        const originalOpen = currentCandle.open; // Preserve the original open
         currentCandle.high = Math.max(currentCandle.high, price);
         currentCandle.low = Math.min(currentCandle.low, price);
         currentCandle.close = price;
+        currentCandle.open = originalOpen; // Ensure open price doesn't change
       }
 
       const istDate = convertToIST(currentTime);
       const timeRemaining = 60 - istDate.getSeconds();
-
-      // Update or create the price line
-      if (priceLine) {
-        series.removePriceLine(priceLine);
-      }
 
       series.applyOptions({
         lastValueVisible: true,
@@ -86,7 +89,7 @@ export function RealTimeChart({ atmCallSymbol, atmPutSymbol, currentTab, atmCall
         title: `${timeRemaining}s`,
       });
 
-      // Only update the series every second to avoid excessive updates
+      // Update the series every second
       const currentUpdateTime = Date.now();
       if (currentUpdateTime - lastUpdateTime >= 1000) {
         series.update(chartDataRef.current[symbol].currentCandle);
@@ -94,6 +97,15 @@ export function RealTimeChart({ atmCallSymbol, atmPutSymbol, currentTab, atmCall
       }
     }
   }, [lastUpdateTime]);
+
+  const handleResize = () => {
+    if (chartRef.current && chartContainerRef.current) {
+      chartRef.current.applyOptions({
+        width: chartContainerRef.current.clientWidth,
+        height: chartContainerRef.current.clientHeight,
+      });
+    }
+  };
 
   useEffect(() => {
     if (chartContainerRef.current && !chartRef.current) {
@@ -152,16 +164,31 @@ export function RealTimeChart({ atmCallSymbol, atmPutSymbol, currentTab, atmCall
         callSeries.setData(callData);
         putSeries.setData(putData);
 
+        //setLastClosePrice({
+        //  [atmCallSymbol]: callData[callData.length - 1]?.close || callData[callData.length - 1]?.open || 0,
+        //  [atmPutSymbol]: putData[putData.length - 1]?.close || putData[putData.length - 1]?.open || 0,
+        //});
+
         chartDataRef.current = {
           [atmCallSymbol]: { 
             series: callSeries, 
-            currentCandle: callData[callData.length - 1] || { time: 0 as UTCTimestamp, open: 0, high: 0, low: 0, close: 0 }, 
-            priceLine: null 
+            currentCandle: callData[callData.length - 1] || { 
+              time: 0 as UTCTimestamp, 
+              open: callData[callData.length - 1]?.close || 0,
+              high: 0, 
+              low: 0, 
+              close: 0 
+            }, 
           },
           [atmPutSymbol]: { 
             series: putSeries, 
-            currentCandle: putData[putData.length - 1] || { time: 0 as UTCTimestamp, open: 0, high: 0, low: 0, close: 0 }, 
-            priceLine: null 
+            currentCandle: putData[putData.length - 1] || { 
+              time: 0 as UTCTimestamp, 
+              open: putData[putData.length - 1]?.close || 0,
+              high: 0, 
+              low: 0, 
+              close: 0 
+            }, 
           },
         };
 

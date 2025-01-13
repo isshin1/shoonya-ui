@@ -1,8 +1,8 @@
 import axios from 'axios';
-
+import { API_BASE_URL } from '@/utils/env';
 export const fetchOpenOrders = async () => {
   try {
-    const response = await axios.get('http://localhost:8090/api/openOrders');
+    const response = await axios.get(`${API_BASE_URL}/api/openOrders`);
     return response.data;
   } catch (error) {
     console.error('Error fetching open orders:', error);
@@ -13,7 +13,7 @@ export const fetchOpenOrders = async () => {
 export const cancelOrder = async (norenordno: string) => {
   console.log("cancelling order", norenordno);
   try {
-    const response = await axios.post(`http://localhost:8090/api/cancelOrder/${norenordno}`);
+    const response = await axios.post(`${API_BASE_URL}/api/cancelOrder/${norenordno}`);
     if (response.status === 200) {
       return response.data;
     } else {

@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { toast } from "@/components/ui/use-toast"
-
+import { API_BASE_URL } from '@/utils/env';
 // Explicitly type the response from the API
 type OptionSymbols = {
     atmCall: string;
@@ -18,7 +18,7 @@ type OrderType = 'MKT' | 'LMT' | 'SL-LMT';
   export async function fetchOptionSymbols(): Promise<OptionSymbols> {
     try {
       console.log('Fetching option symbols...');
-      const response = await fetch('http://localhost:8090/api/atmSymbols');
+      const response = await fetch(`${API_BASE_URL}/api/atmSymbols`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -46,7 +46,7 @@ type OrderType = 'MKT' | 'LMT' | 'SL-LMT';
     const symbolsString = `${symbols.atmCall},${symbols.atmPut}`;
 
       console.log('got symbols:', symbolsString);
-      const response = await fetch(`http://localhost:8090/api/atmPrice/${symbolsString}`);
+      const response = await fetch(`${API_BASE_URL}/api/atmPrice/${symbolsString}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -80,7 +80,7 @@ export const buyOption = async (
   }
 
   try {
-    const response = await axios.post(`http://localhost:8090/api/buyOrder/${symbol}/${orderType}/${price || 0}`);
+    const response = await axios.post(`${API_BASE_URL}/api/buyOrder/${symbol}/${orderType}/${price || 0}`);
     console.log(response.status);
     const responseBody = response.data;
 

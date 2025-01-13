@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { API_BASE_URL } from '@/utils/env';
 import { toast } from "@/components/ui/use-toast"
 
 export const fetchQuote = async (
@@ -8,7 +9,7 @@ export const fetchQuote = async (
   setIsLoading(prev => ({ ...prev, quote: true }))
   try {
     console.log("fetching quote");
-    const response = await axios.get('http://localhost:8090/api/quote')
+    const response = await axios.get(`${API_BASE_URL}/api/quote`)
     setQuote(response.data.quote)
     console.log(response.data.quote);
   } catch (error) {

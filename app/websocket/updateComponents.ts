@@ -25,9 +25,10 @@ type UpdateDataProps = {
   setAtmPut: Dispatch<SetStateAction<AtmData>>
   setOpenOrders: Dispatch<SetStateAction<any[]>>
   setPositions: Dispatch<SetStateAction<Position[]>>
+  setTimerLeft: Dispatch<SetStateAction<string | null>>
 }
 
-export function updateData(message: any, { setAtmCall, setAtmPut, setOpenOrders, setPositions }: UpdateDataProps) {
+export function updateData(message: any, { setAtmCall, setAtmPut, setOpenOrders, setPositions, setTimerLeft }: UpdateDataProps) {
   if (message.type === 'atm') {
     setAtmCall(prevState => ({
       ...prevState,
@@ -47,6 +48,7 @@ export function updateData(message: any, { setAtmCall, setAtmPut, setOpenOrders,
   if (message.token && message.price && message.tt) {
     setAtmCall(prevState => {
       if (message.token === prevState.token) {
+        // console.log(message.price );
         return { ...prevState, price: message.price, tt: message.tt };
       }
       return prevState;
@@ -54,6 +56,7 @@ export function updateData(message: any, { setAtmCall, setAtmPut, setOpenOrders,
     
     setAtmPut(prevState => {
       if (message.token === prevState.token) {
+        // console.log(message.price );
         return { ...prevState, price: message.price, tt: message.tt };
       }
       return prevState;
@@ -74,4 +77,10 @@ export function updateData(message: any, { setAtmCall, setAtmPut, setOpenOrders,
       setPositions(positions);
     }
   }
+
+  if (message.type === 'timer') {
+    console.log();
+    setTimerLeft(message.left);
+  }
 }
+

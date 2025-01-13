@@ -1,5 +1,5 @@
 'use client'
-
+import { API_BASE_URL } from '@/utils/env';
 import axios from 'axios';
 import { useState, useEffect, useCallback } from 'react'
 import { useToast } from "@/components/ui/use-toast"
@@ -69,7 +69,7 @@ export default function Home() {
 
   const endSession = async () => {
     try {
-      const response = await axios.post('http://localhost:8090/api/withdrawFunds');
+      const response = await axios.post(`${API_BASE_URL}/api/withdrawFunds`);
       console.log(response.status);
       if (response.status === 200) {
         toast({
@@ -91,7 +91,7 @@ export default function Home() {
 
   const addMoney = async () => {
     try {
-      const response = await axios.post(`http://localhost:8090/api/addFunds/${amount}`);
+      const response = await axios.post(`${API_BASE_URL}/api/addFunds/${amount}`);
       console.log(response.status);
       if (response.status === 200) {
         toast({

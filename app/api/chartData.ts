@@ -1,5 +1,5 @@
 import axios from 'axios';
-
+import { API_BASE_URL } from '@/utils/env';
 interface CandleData {
   into: string;
   stat: string;
@@ -25,11 +25,12 @@ interface ChartCandleData {
 
 export async function fetchHistoricalData(symbol: string): Promise<ChartCandleData[]> {
   try {
-    console.log(`fetching historical data for ${symbol}`)
-    const response = await axios.get<CandleData[]>(`http://localhost:8090/api/test/${symbol}`);
-    // const response = await axios.get<CandleData[]>(`http://localhost:8090/api/test`);
-    console.log(response.data);
-    return convertBackendDataToChartData(response.data);
+    console.log(`Fetching historical data for ${symbol}`);
+    const response = await axios.get<CandleData[]>(`${API_BASE_URL}/api/fetchHistoricalData/${symbol}`);
+    console.log('Raw historical data:', response.data);
+    const chartData = convertBackendDataToChartData(response.data);
+    console.log('Converted chart data:', chartData);
+    return chartData;
   } catch (error) {
     console.error('Error fetching historical data:', error);
     return [];
@@ -37,18 +38,25 @@ export async function fetchHistoricalData(symbol: string): Promise<ChartCandleDa
 }
 
 function convertBackendDataToChartData(backendData: CandleData[]): ChartCandleData[] {
-  return backendData.map(candle => ({
-    time: parseInt(candle.ssboe, 10), // Use ssboe as it's already in Unix timestamp format
-    open: parseFloat(candle.into),
-    high: parseFloat(candle.inth),
-    low: parseFloat(candle.intl),
-    close: parseFloat(candle.intc)
-  })).filter(candle => 
-    !isNaN(candle.time) && 
-    !isNaN(candle.open) && 
-    !isNaN(candle.high) && 
-    !isNaN(candle.low) && 
-    !isNaN(candle.close)
-  );
+  return backendData.map(candle => {
+    const time = parseInt(candle.ssboe, 10);
+    const open = parseFloat(candle.into);
+    const high = parseFloat(candle.inth);
+    const low = parseFloat(candle.intl);
+    const close = parseFloat(candle.intc);
+
+    if (isNaN(time) || isNaN(open) || isNaN(high) || isNaN(low) || isNaN(close)) {
+      console.warn('Invalid candle data:', candle);
+      return null;
+    }
+
+    return {
+      time,
+      open,
+      high,
+      low,
+      close
+    };
+  }).filter((candle): candle is ChartCandleData => candle !== null);
 }
 

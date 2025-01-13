@@ -1,5 +1,5 @@
 import axios from 'axios';
-
+import { API_BASE_URL } from '@/utils/env';
 export interface Position {
   id: string;
   symbol: string;
@@ -12,7 +12,7 @@ export interface Position {
 
 export async function fetchPositions(): Promise<Position[]> {
   try {
-    const response = await axios.get('http://localhost:8090/api/positions');
+    const response = await axios.get(`${API_BASE_URL}/api/positions`);
     return response.data;
   } catch (error) {
     console.error('Error fetching positions:', error);

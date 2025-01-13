@@ -1,0 +1,21 @@
+.crate {
+    display: flex;
+  }
+  
+  .crate > * + * {
+    margin-left: 0.5rem; /* This is equivalent to space-x-2 in Tailwind */
+  }
+  
+  .sidebar-transition {
+    transition: width 300ms ease-in-out, padding 300ms ease-in-out;
+  }
+  
+  .content-transition {
+    transition: margin-left 300ms ease-in-out, padding 300ms ease-in-out;
+  }
+  
+  .main-content-transition {
+    transition: margin-left 300ms ease-in-out;
+  }
+  
+  

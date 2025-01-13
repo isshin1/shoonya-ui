@@ -1,4 +1,5 @@
 'use client'
+import { API_BASE_URL } from '@/utils/env';
 
 import { useState, useEffect } from 'react'
 import { AppSidebar } from '@/components/app-sidebar'
@@ -29,7 +30,7 @@ export default function PnLCalendar() {
     try {
       const today = format(new Date(), 'yyyy-MM-dd')
       const limitedEnd = end > today ? today : end
-      const response = await fetch(`http://localhost:8090/api/pnl?start=${start}&end=${limitedEnd}`)
+      const response = await fetch(`${API_BASE_URL}/api/pnl?start=${start}&end=${limitedEnd}`)
       if (!response.ok) {
         throw new Error('Failed to fetch PnL data')
       }

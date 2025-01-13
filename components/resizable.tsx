@@ -11,8 +11,8 @@ interface ResizableProps {
 export function Resizable({
   children,
   defaultSize = 30,
-  minSize = 10,
-  maxSize = 70,
+  minSize = 20,
+  maxSize = 80,
 }: ResizableProps) {
   const [size, setSize] = React.useState(defaultSize)
   const [isResizing, setIsResizing] = React.useState(false)

@@ -1,5 +1,7 @@
 import { toast } from "@/components/ui/use-toast"
 import axios from 'axios';
+import { API_BASE_URL } from '@/utils/env';
+import { WEBSOCKET_BASE_URL } from '@/utils/env';
 
 let socket: WebSocket | null = null;
 let updateDataCallback: ((message: any) => void) | null = null;
@@ -9,12 +11,12 @@ export function initializeWebSocket(callback: (message: any) => void) {
     return socket;
   }
 
-  socket = new WebSocket('ws://localhost:8090/ws');
+  socket = new WebSocket(`ws://${WEBSOCKET_BASE_URL}/ws`);
 
   socket.onopen = () => {
     sendMessage("frontend connected");
     console.log('WebSocket connection established');
-    axios.post('http://localhost:8090/api/firstFetch', {
+    axios.post(`${API_BASE_URL}/api/firstFetch`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -41,11 +43,13 @@ export function initializeWebSocket(callback: (message: any) => void) {
   socket.onclose = () => {
     console.log('WebSocket connection closed');
     socket = null;
-    setTimeout(() => initializeWebSocket(callback), 5000);
+    setTimeout(() => initializeWebSocket(callback), 1000);
   };
 
   socket.onerror = (error) => {
     console.error('WebSocket error:', error);
+    socket = null;
+    setTimeout(() => initializeWebSocket(callback), 1000);
   };
 
   updateDataCallback = callback;

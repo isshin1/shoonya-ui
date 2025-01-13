@@ -1,10 +1,10 @@
+/// <reference types="react/experimental" />
 'use client'
+import  React , { useState, useEffect } from 'react';
 
-import { useState, useEffect } from 'react'
 import { AppSidebar } from '@/components/app-sidebar'
 import { SidebarInset } from '@/components/ui/sidebar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-
 type EconomicEvent = {
   date: string
   time: string
@@ -12,18 +12,8 @@ type EconomicEvent = {
   impact: 'low' | 'medium' | 'high'
 }
 
-export default function EconomicCalendar() {
+const EconomicCalendar: React.FC = () => {
   const [events, setEvents] = useState<EconomicEvent[]>([])
-
-  useEffect(() => {
-    // Fetch economic events from RSS feed
-    // This is a placeholder, replace with actual API call
-    setEvents([
-      { date: '2023-07-21', time: '08:30', event: 'US Jobless Claims', impact: 'medium' },
-      { date: '2023-07-21', time: '10:00', event: 'Existing Home Sales', impact: 'low' },
-      { date: '2023-07-22', time: '09:45', event: 'US Manufacturing PMI', impact: 'high' },
-    ])
-  }, [])
 
   return (
     <div className="flex h-screen">
@@ -60,3 +50,6 @@ export default function EconomicCalendar() {
     </div>
   )
 }
+
+export default EconomicCalendar;
+

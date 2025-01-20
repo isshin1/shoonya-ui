@@ -1,11 +1,11 @@
 'use client'
-import { API_BASE_URL } from '@/utils/env';
+
 import {  } from '@stitches/react';
 import axios from 'axios';
 import { useState, useEffect, useCallback } from 'react'
 import { useToast } from "@/components/ui/use-toast"
 import { AppSidebar } from '@/components/app-sidebar'
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { SidebarInset, SidebarTrigger, SidebarProvider, DialogOverlay as DefaultDialogOverlay } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
@@ -117,9 +117,8 @@ export default function Home() {
   const [plan, setPlan] = useState('')
   const [selectedOrder, setSelectedOrder] = useState<OpenOrder | null>(null)
   const [newPrice, setNewPrice] = useState<string>('')
-  const [isModifyOrderOpen, setIsModifyOrderOpen] = useState(false) 
-  const [timerEnd, setTimerEnd] = useState<number | null>(null); 
-  const [timerLeft, setTimerLeft] = useState<string>("00:00");
+  const [isModifyOrderOpen, setIsModifyOrderOpen] = useState(false) // Added state for Modify Order dialog
+  const [timerLeft, setTimerLeft] = useState<string | null>(null);
 
   const { toast } = useToast()
 
@@ -173,10 +172,10 @@ export default function Home() {
     if (!selectedOrder) return;
 
     setIsLoading(prev => ({ ...prev, modifyOrder: true }));
-    setIsModifyOrderOpen(false); 
+    setIsModifyOrderOpen(false); // Close the dialog immediately
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/modifyOrder/${selectedOrder.norenordno}/${newPrice}`);
+      const response = await axios.post(`http://localhost:8090/api/modifyOrder/${selectedOrder.norenordno}/${newPrice}`);
       if (response.status === 200) {
         toast({
           title: "Order Modification Sent",
@@ -205,7 +204,7 @@ export default function Home() {
 
   useEffect(() => {
     const handleWebSocketMessage = (message: any) => {
-      updateData(message, { setAtmCall, setAtmPut, setOpenOrders, setPositions });
+      updateData(message, { setAtmCall, setAtmPut, setOpenOrders, setPositions, setTimerLeft });
     };
 
     const socket = initializeWebSocket(handleWebSocketMessage);
@@ -241,25 +240,7 @@ export default function Home() {
     symbol: string
   ) => {
     const result = await buyOption(type, orderType, price, symbol, setIsLoading);
-    if (result.success && result.startTime) {
-      setTimerEnd(result.startTime + 15 * 60 * 1000); 
-    }
   };
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (timerEnd && Date.now() < timerEnd) {
-        const timeLeft = timerEnd - Date.now();
-        const minutes = Math.floor((timeLeft / (1000 * 60)) % 60);
-        const seconds = Math.floor((timeLeft / 1000) % 60);
-        setTimerLeft(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
-      } else {
-        setTimerLeft("00:00");
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [timerEnd]);
-
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
@@ -267,258 +248,260 @@ export default function Home() {
         <AppSidebar />
         <SidebarInset className="flex flex-col w-full">
           <header className="flex justify-between items-center p-4 border-b">
-  <div className="flex-1 flex items-center justify-start">
+  <div className="flex-1">
+    <div 
+      className="text-left cursor-pointer p-2"
+      onClick={fetchQuoteCallback}
+    >
+      <p className="text-sm italic inline-block hover:bg-gray-100 px-2 py-1 rounded transition-colors">
+        {isLoading.quote ? 'Fetching quote...' : (quote || 'No quote available')}
+      </p>
+    </div>
+  </div>
+  <div className="flex-1 flex justify-center">
     {timerLeft && timerLeft !== '00:00' && (
-      <div className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded mr-4">
+      <div className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
         Next order in: {timerLeft}
       </div>
     )}
-  </div>
-  <div 
-    className="flex-1 text-center cursor-pointer"
-    onClick={fetchQuoteCallback}
-  >
-    <p className="text-sm italic inline-block hover:bg-gray-100 px-2 py-1 rounded transition-colors">
-      {isLoading.quote ? 'Fetching quote...' : (quote || 'No quote available')}
-    </p>
   </div>
   <div className="flex-1 flex justify-end space-x-2">
     <Dialog open={isAddMoneyOpen} onOpenChange={setIsAddMoneyOpen}>
       <DialogTrigger asChild>
         <Button variant="outline">Add Money</Button>
       </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add Money</DialogTitle>
-        </DialogHeader>
-        <Input 
-          type="number" 
-          placeholder="Enter amount" 
-          value={amount} 
-          onChange={(e) => setAmount(e.target.value)}
-        />
-        <Button onClick={handleAddMoney}>Confirm</Button>
-      </DialogContent>
-    </Dialog>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add Money</DialogTitle>
+                  </DialogHeader>
+                  <Input 
+                    type="number" 
+                    placeholder="Enter amount" 
+                    value={amount} 
+                    onChange={(e) => setAmount(e.target.value)}
+                  />
+                  <Button onClick={handleAddMoney}>Confirm</Button>
+                </DialogContent>
+              </Dialog>
     <AlertDialog open={isEndSessionOpen} onOpenChange={setIsEndSessionOpen}>
       <AlertDialogTrigger asChild>
         <Button variant="destructive">End Session</Button>
       </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This action will end your current trading session.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={handleEndSession}>End Session</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action will end your current trading session.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleEndSession}>End Session</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
   </div>
 </header>
           <div className="flex-1 overflow-hidden">
-            <Resizable defaultSize={30} minSize={20} maxSize={50}>
+            <Resizable defaultSize={30} minSize={20} maxSize={80}>
               <div className="h-full overflow-y-auto pr-4">
                 <Card className="mb-4">
                   <CardContent className="space-y-4">
                     <Card>
                       <CardContent className="p-4 text-sm">
-                        <Tabs defaultValue="call" className="h-full flex flex-col" onValueChange={(value) => setCurrentTab(value as 'call' | 'put')}>
-                          <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="call">Call</TabsTrigger>
-                            <TabsTrigger value="put">Put</TabsTrigger>
-                          </TabsList>
-                          <TabsContent value="call" className="flex-grow">
-                            <div className="space-y-4">
-                              <Tabs defaultValue="MKT" className="w-full" onValueChange={(value) => setOrderType(value as OrderType)}>
-                                <TabsList className="grid w-full grid-cols-3 bg-transparent border-none">
-                                  <TabsTrigger 
-                                    value="MKT" 
-                                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
-                                  >
-                                    Market
-                                  </TabsTrigger>
-                                  <TabsTrigger 
-                                    value="LMT"
-                                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
-                                  >
-                                    Limit
-                                  </TabsTrigger>
-                                  <TabsTrigger 
-                                    value="SL-LMT"
-                                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
-                                  >
-                                    Stop Limit
-                                  </TabsTrigger>
-                                </TabsList>
-                                <TabsContent value="MKT" className="space-y-4 pt-4">
-                                  <Button 
-                                    onClick={() => handleBuyOption(
-                                      'call',
-                                      orderType,
-                                      callPrice,
-                                      atmCall.symbol
-                                    )} 
-                                    className="w-full" 
-                                    disabled={isLoading.buyOrder}
-                                  >
-                                    {isLoading.buyOrder ? 'Buying...' : 'Buy Call'}
-                                  </Button>
-                                </TabsContent>
-                                <TabsContent value="LMT" className="space-y-4 pt-4">
-                                  <div>
-                                    <label htmlFor="callPrice" className="block text-sm font-medium text-gray-700">
-                                      Price
-                                    </label>
-                                    <Input
-                                      id="callPrice"
-                                      type="number"
-                                      value={callPrice}
-                                      onChange={(e) => setCallPrice(e.target.value)}
-                                      placeholder="Enter limit price"
-                                    />
-                                  </div>
-                                  <Button 
-                                    onClick={() => handleBuyOption(
-                                      'call',
-                                      orderType,
-                                      callPrice,
-                                      atmCall.symbol
-                                    )} 
-                                    className="w-full" 
-                                    disabled={isLoading.buyOrder}
-                                  >
-                                    {isLoading.buyOrder ? 'Buying...' : 'Buy Call'}
-                                  </Button>
-                                </TabsContent>
-                                <TabsContent value="SL-LMT" className="space-y-4 pt-4">
-                                  <div>
-                                    <label htmlFor="callStopPrice" className="block text-sm font-medium text-gray-700">
-                                      Price
-                                    </label>
-                                    <Input
-                                      id="callStopPrice"
-                                      type="number"
-                                      value={callPrice}
-                                      onChange={(e) => setCallPrice(e.target.value)}
-                                      placeholder="Enter stop limit price"
-                                    />
-                                  </div>
-                                  <Button 
-                                    onClick={() => handleBuyOption(
-                                      'call',
-                                      orderType,
-                                      callPrice,
-                                      atmCall.symbol
-                                    )} 
-                                    className="w-full" 
-                                    disabled={isLoading.buyOrder}
-                                  >
-                                    {isLoading.buyOrder ? 'Buying...' : 'Buy Call'}
-                                  </Button>
-                                </TabsContent>
-                              </Tabs>
-                              <div className="text-sm text-gray-500">
-                                Latest price: ₹{atmCall.price.toFixed(2)}
+                          <Tabs defaultValue="call" className="h-full flex flex-col" onValueChange={(value) => setCurrentTab(value as 'call' | 'put')}>
+                            <TabsList className="grid w-full grid-cols-2">
+                              <TabsTrigger value="call">Call</TabsTrigger>
+                              <TabsTrigger value="put">Put</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="call" className="flex-grow">
+                              <div className="space-y-4">
+                                <Tabs defaultValue="MKT" className="w-full" onValueChange={(value) => setOrderType(value as OrderType)}>
+                                  <TabsList className="grid w-full grid-cols-3 bg-transparent border-none">
+                                    <TabsTrigger 
+                                      value="MKT" 
+                                      className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
+                                    >
+                                Market
+                                    </TabsTrigger>
+                                    <TabsTrigger 
+                                      value="LMT"
+                                      className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
+                                    >
+                                      Limit
+                                    </TabsTrigger>
+                                    <TabsTrigger 
+                                      value="SL-LMT"
+                                      className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
+                                    >
+                                      Stop Limit
+                                    </TabsTrigger>
+                                  </TabsList>
+                                  <TabsContent value="MKT" className="space-y-4 pt-4">
+                                    <Button 
+                                      onClick={() => handleBuyOption(
+                                        'call',
+                                        orderType,
+                                        callPrice,
+                                        atmCall.symbol
+                                      )} 
+                                      className="w-full" 
+                                      disabled={isLoading.buyOrder}
+                                    >
+                                      {isLoading.buyOrder ? 'Buying...' : 'Buy Call'}
+                                    </Button>
+                                  </TabsContent>
+                                  <TabsContent value="LMT" className="space-y-4 pt-4">
+                                    <div>
+                                      <label htmlFor="callPrice" className="block text-sm font-medium text-gray-700">
+                                        Price
+                                      </label>
+                                      <Input
+                                        id="callPrice"
+                                        type="number"
+                                        value={callPrice}
+                                        onChange={(e) => setCallPrice(e.target.value ?? 0.0)}
+                                        placeholder="Enter limit price"
+                                      />
+                                    </div>
+                                    <Button 
+                                      onClick={() => handleBuyOption(
+                                        'call',
+                                        orderType,
+                                        callPrice,
+                                        atmCall.symbol
+                                      )} 
+                                      className="w-full" 
+                                      disabled={isLoading.buyOrder}
+                                    >
+                                      {isLoading.buyOrder ? 'Buying...' : 'Buy Call'}
+                                    </Button>
+                                  </TabsContent>
+                                  <TabsContent value="SL-LMT" className="space-y-4 pt-4">
+                                    <div>
+                                      <label htmlFor="callStopPrice" className="block text-sm font-medium text-gray-700">
+                                        Price
+                                      </label>
+                                      <Input
+                                        id="callStopPrice"
+                                        type="number"
+                                        value={callPrice}
+                                        onChange={(e) => setCallPrice(e.target.value ?? 0.0)}
+                                        placeholder="Enter stop limit price"
+                                      />
+                                    </div>
+                                    <Button 
+                                      onClick={() => handleBuyOption(
+                                        'call',
+                                        orderType,
+                                        callPrice,
+                                        atmCall.symbol
+                                      )} 
+                                      className="w-full" 
+                                      disabled={isLoading.buyOrder}
+                                    >
+                                      {isLoading.buyOrder ? 'Buying...' : 'Buy Call'}
+                                    </Button>
+                                  </TabsContent>
+                                </Tabs>
+                                <div className="text-sm text-gray-500">
+                                  Latest price: ₹{atmCall.price.toFixed(2)}
+                                </div>
                               </div>
-                            </div>
-                          </TabsContent>
-                          <TabsContent value="put" className="flex-grow">
-                            <div className="space-y-4">
-                              <Tabs defaultValue="MKT" className="w-full" onValueChange={(value) => setOrderType(value as OrderType)}>
-                                <TabsList className="grid w-full grid-cols-3 bg-transparent border-none">
-                                  <TabsTrigger 
-                                    value="MKT" 
-                                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
-                                  >
-                                    Market
-                                  </TabsTrigger>
-                                  <TabsTrigger 
-                                    value="LMT"
-                                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
-                                  >
-                                    Limit
-                                  </TabsTrigger>
-                                  <TabsTrigger 
-                                    value="SL-LMT"
-                                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
-                                  >
-                                    Stop Limit
-                                  </TabsTrigger>
-                                </TabsList>
-                                <TabsContent value="MKT" className="space-y-4 pt-4">
-                                  <Button 
-                                    onClick={() => handleBuyOption(
-                                      'put',
-                                      'MKT', 
-                                      putPrice,
-                                      atmPut.symbol
-                                    )} 
-                                    className="w-full" 
-                                    disabled={isLoading.buyOrder}
-                                  >
-                                    {isLoading.buyOrder ? 'Buying...' : 'Buy Put'}
-                                  </Button>
-                                </TabsContent>
-                                <TabsContent value="LMT" className="space-y-4 pt-4">
-                                  <div>
-                                    <Input
-                                      id="putPrice"
-                                      type="number"
-                                      value={putPrice}
-                                      onChange={(e) => setPutPrice(e.target.value)}
-                                      placeholder="Enter limit price"
-                                    />
-                                  </div>
-                                  <Button 
-                                    onClick={() => handleBuyOption(
-                                      'put',
-                                      'LMT', 
-                                      putPrice,
-                                      atmPut.symbol
-                                    )} 
-                                    className="w-full" 
-                                    disabled={isLoading.buyOrder}
-                                  >
-                                    {isLoading.buyOrder ? 'Buying...' : 'Buy Put'}
-                                  </Button>
-                                </TabsContent>
-                                <TabsContent value="SL-LMT" className="space-y-4 pt-4">
-                                  <div>
-                                    <label htmlFor="putStopPrice" className="block text-sm font-medium text-gray-700">
-                                      Price
-                                    </label>
-                                    <Input
-                                      id="putStopPrice"
-                                      type="number"
-                                      value={putPrice}
-                                      onChange={(e) => setPutPrice(e.target.value)}
-                                      placeholder="Enter stop limit price"
-                                    />
-                                  </div>
-                                  <Button 
-                                    onClick={() => handleBuyOption(
-                                      'put',
-                                      'SL-LMT', 
-                                      putPrice,
-                                      atmPut.symbol
-                                    )} 
-                                    className="w-full" 
-                                    disabled={isLoading.buyOrder}
-                                  >
-                                    {isLoading.buyOrder ? 'Buying...' : 'Buy Put'}
-                                  </Button>
-                                </TabsContent>
-                              </Tabs>
-                              <div className="text-sm text-gray-500">
-                                Latest price: ₹{atmPut.price.toFixed(2)}
+                            </TabsContent>
+                            <TabsContent value="put" className="flex-grow">
+                              <div className="space-y-4">
+                                <Tabs defaultValue="MKT" className="w-full" onValueChange={(value) => setOrderType(value as OrderType)}>
+                                  <TabsList className="grid w-full grid-cols-3 bg-transparent border-none">
+                                    <TabsTrigger 
+                                      value="MKT" 
+                                      className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
+                                    >
+                                      Market
+                                    </TabsTrigger>
+                                    <TabsTrigger 
+                                      value="LMT"
+                                      className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
+                                    >
+                                      Limit
+                                    </TabsTrigger>
+                                    <TabsTrigger 
+                                      value="SL-LMT"
+                                      className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
+                                    >
+                                      Stop Limit
+                                    </TabsTrigger>
+                                  </TabsList>
+                                  <TabsContent value="MKT" className="space-y-4 pt-4">
+                                    <Button 
+                                      onClick={() => handleBuyOption(
+                                        'put',
+                                        'MKT', 
+                                        putPrice,
+                                        atmPut.symbol
+                                      )} 
+                                      className="w-full" 
+                                      disabled={isLoading.buyOrder}
+                                    >
+                                      {isLoading.buyOrder ? 'Buying...' : 'Buy Put'}
+                                    </Button>
+                                  </TabsContent>
+                                  <TabsContent value="LMT" className="space-y-4 pt-4">
+                                    <div>
+                                      <Input
+                                        id="putPrice"
+                                        type="number"
+                                        value={putPrice}
+                                        onChange={(e) => setPutPrice(e.target.value)}
+                                        placeholder="Enter limit price"
+                                      />
+                                    </div>
+                                    <Button 
+                                      onClick={() => handleBuyOption(
+                                        'put',
+                                        'LMT', 
+                                        putPrice,
+                                        atmPut.symbol
+                                      )} 
+                                      className="w-full" 
+                                      disabled={isLoading.buyOrder}
+                                    >
+                                      {isLoading.buyOrder ? 'Buying...' : 'Buy Put'}
+                                    </Button>
+                                  </TabsContent>
+                                  <TabsContent value="SL-LMT" className="space-y-4 pt-4">
+                                    <div>
+                                      <label htmlFor="putStopPrice" className="block text-sm font-medium text-gray-700">
+                                        Price
+                                      </label>
+                                      <Input
+                                        id="putStopPrice"
+                                        type="number"
+                                        value={putPrice}
+                                        onChange={(e) => setPutPrice(e.target.value)}
+                                        placeholder="Enter stop limit price"
+                                      />
+                                    </div>
+                                    <Button 
+                                      onClick={() => handleBuyOption(
+                                        'put',
+                                        'SL-LMT', 
+                                        putPrice,
+                                        atmPut.symbol
+                                      )} 
+                                      className="w-full" 
+                                      disabled={isLoading.buyOrder}
+                                    >
+                                      {isLoading.buyOrder ? 'Buying...' : 'Buy Put'}
+                                    </Button>
+                                  </TabsContent>
+                                </Tabs>
+                                <div className="text-sm text-gray-500">
+                                  Latest price: ₹{atmPut.price.toFixed(2)}
+                                </div>
                               </div>
-                            </div>
-                          </TabsContent>
-                        </Tabs>
+                            </TabsContent>
+                          </Tabs>
                       </CardContent>
                     </Card>
                     <PlanInputs
@@ -532,72 +515,72 @@ export default function Home() {
                         <CardTitle>Open Orders</CardTitle>
                       </CardHeader>
                       <CardContent className="p-4 text-sm">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="w-[100px]">Symbol</TableHead>
-                              <TableHead>Price</TableHead>
-                              <TableHead>Qty</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {openOrders.length > 0 ? (
-                              openOrders.map((order) => (
-                                <TableRow key={order.norenordno}>
-                                  <TableCell className="font-medium">{order.tsym}</TableCell>
-                                  <TableCell>₹{order.prc}</TableCell>
-                                  <TableCell>{order.qty}</TableCell>
-                                  <TableCell>{order.prctyp}</TableCell>
-                                  <TableCell>
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="h-8 w-8 p-0">
-                                          <span className="sr-only">Open menu</span>
-                                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-                                            <circle cx="12" cy="12" r="1" />
-                                            <circle cx="12" cy="5" r="1" />
-                                            <circle cx="12" cy="19" r="1" />
-                                          </svg>
-                                        </Button>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => handleCancelOrderWrapper(order.norenordno)}>
-                                          Cancel Order
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => {
-                                          setSelectedOrder(order);
-                                          setNewPrice(order.prc);
-                                          setIsModifyOrderOpen(true);
-                                        }}>
-                                          Modify Order
-                                        </DropdownMenuItem>
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
-                                  </TableCell>
-                                </TableRow>
-                              ))
-                            ) : (
+                          <Table>
+                            <TableHeader>
                               <TableRow>
-                                <TableCell colSpan={5} className="text-center">No active orders</TableCell>
+                                <TableHead className="w-[100px]">Symbol</TableHead>
+                                <TableHead>Price</TableHead>
+                                <TableHead>Qty</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Actions</TableHead>
                               </TableRow>
-                            )}
-                          </TableBody>
-                        </Table>
+                            </TableHeader>
+                            <TableBody>
+                              {openOrders.length > 0 ? (
+                                openOrders.map((order) => (
+                                  <TableRow key={order.norenordno}>
+                                    <TableCell className="font-medium">{order.tsym}</TableCell>
+                                    <TableCell>₹{order.prc}</TableCell>
+                                    <TableCell>{order.qty}</TableCell>
+                                    <TableCell>{order.prctyp}</TableCell>
+                                    <TableCell>
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button variant="ghost" className="h-8 w-8 p-0">
+                                            <span className="sr-only">Open menu</span>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                                              <circle cx="12" cy="12" r="1" />
+                                              <circle cx="12" cy="5" r="1" />
+                                              <circle cx="12" cy="19" r="1" />
+                                            </svg>
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                          <DropdownMenuItem onClick={() => handleCancelOrderWrapper(order.norenordno)}>
+                                            Cancel Order
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => {
+                                            setSelectedOrder(order);
+                                            setNewPrice(order.prc);
+                                            setIsModifyOrderOpen(true); // Open the Modify Order dialog
+                                          }}>
+                                            Modify Order
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    </TableCell>
+                                  </TableRow>
+                                ))
+                              ) : (
+                                <TableRow>
+                                  <TableCell colSpan={5} className="text-center">No active orders</TableCell>
+                                </TableRow>
+                              )}
+                            </TableBody>
+                          </Table>
                       </CardContent>
                     </Card>
                   </CardContent>
                 </Card>
               </div>
               <div className="h-full flex flex-col">
-                <Card className="flex-grow mb-4 h-full">
+                <Card className="flex-grow overflow-y-auto mb-4">
                   <CardHeader className="p-2">
                     <CardTitle>
-                      {currentTab === 'call' ? convertString(atmCall.symbol) : convertString(atmPut.symbol)}
+                    {currentTab === 'call' ? convertString(atmCall.symbol) : convertString(atmPut.symbol)}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="p-0 h-[calc(100%-3rem)]">
+                  <CardContent className="h-[calc(100%-3rem)] p-0">
                     <RealTimeChart 
                       atmCallSymbol={atmCall.symbol}
                       atmPutSymbol={atmPut.symbol}

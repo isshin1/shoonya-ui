@@ -15,7 +15,7 @@ export function initializeWebSocket(callback: (message: any) => void) {
 
   socket.onopen = () => {
     sendMessage("frontend connected");
-    console.log('WebSocket connection established');
+    console.log('WebSocket connection established, fetching new data');
     axios.post(`${API_BASE_URL}/api/firstFetch`, {
       method: 'POST',
       headers: {

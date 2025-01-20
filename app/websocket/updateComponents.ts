@@ -30,6 +30,7 @@ type UpdateDataProps = {
 
 export function updateData(message: any, { setAtmCall, setAtmPut, setOpenOrders, setPositions, setTimerLeft }: UpdateDataProps) {
   if (message.type === 'atm') {
+    console.log(message);
     setAtmCall(prevState => ({
       ...prevState,
       symbol: message.ceTsym,
@@ -48,7 +49,6 @@ export function updateData(message: any, { setAtmCall, setAtmPut, setOpenOrders,
   if (message.token && message.price && message.tt) {
     setAtmCall(prevState => {
       if (message.token === prevState.token) {
-        // console.log(message.price );
         return { ...prevState, price: message.price, tt: message.tt };
       }
       return prevState;
@@ -56,7 +56,6 @@ export function updateData(message: any, { setAtmCall, setAtmPut, setOpenOrders,
     
     setAtmPut(prevState => {
       if (message.token === prevState.token) {
-        // console.log(message.price );
         return { ...prevState, price: message.price, tt: message.tt };
       }
       return prevState;
@@ -79,7 +78,6 @@ export function updateData(message: any, { setAtmCall, setAtmPut, setOpenOrders,
   }
 
   if (message.type === 'timer') {
-    console.log();
     setTimerLeft(message.left);
   }
 }

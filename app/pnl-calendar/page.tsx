@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { CalendarIcon } from 'lucide-react'
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, parseISO } from 'date-fns'
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, parseISO, isWeekend } from 'date-fns'
 
 type PnLData = {
   [date: string]: number
@@ -92,24 +92,26 @@ export default function PnLCalendar() {
     endDate = endDate > today ? today : endDate
 
     const days = eachDayOfInterval({ start: startDate, end: endDate })
+      .filter(date => {
+        const dateString = format(date, 'yyyy-MM-dd')
+        return dateString in pnlData
+      })
 
     return {
       calendarJSX: (
-        <div className="grid grid-cols-7 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {days.map((date) => {
             const dateString = format(date, 'yyyy-MM-dd')
             const pnl = pnlData[dateString] || 0
-            const isHoliday = [0, 6].includes(date.getDay()) // Assuming weekends are holidays
             return (
-              <Card key={dateString} className={`p-4 ${isHoliday ? 'bg-gray-100' : ''}`}>
+              <Card key={dateString} className="p-4">
                 <CardHeader className="p-0">
                   <CardTitle className="text-sm">{format(date, 'd MMM')}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0 pt-2">
                   <p className={`text-lg font-bold ${pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ₹{pnl}
+                    ₹{pnl}
                   </p>
-                  {isHoliday && <p className="text-xs text-gray-500">Holiday</p>}
                 </CardContent>
               </Card>
             )
@@ -220,14 +222,14 @@ export default function PnLCalendar() {
           </Card>
           <Card className="col-span-4">
             <CardHeader>
-              <CardTitle>PnL Summary</CardTitle>
+              <CardTitle>PnL Summary (Trading Days Only)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold">Total PnL</h3>
                   <p className={`text-2xl font-bold ${summary.totalPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ₹{summary.totalPnl}
+                    ₹{summary.totalPnl}
                   </p>
                 </div>
                 <div>
@@ -247,7 +249,6 @@ export default function PnLCalendar() {
           </Card>
         </div>
       </SidebarInset>
-      
     </div>
   )
 }

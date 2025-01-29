@@ -1,146 +1,194 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react';
-import { createChart, IChartApi, ISeriesApi, CandlestickData, UTCTimestamp, LineStyle } from 'lightweight-charts';
-import { Card, CardContent } from '@/components/ui/card';
-import { fetchHistoricalData } from '@/app/api/chartData';
+import React, { useEffect, useRef, useCallback, useState } from "react"
+import {
+  createChart,
+  type IChartApi,
+  type ISeriesApi,
+  type CandlestickData,
+  type UTCTimestamp,
+  LineStyle,
+} from "lightweight-charts"
+import { Card, CardContent } from "@/components/ui/card"
+import { fetchHistoricalData } from "@/app/api/chartData"
 
 interface RealTimeChartWithTimeProps {
-  atmCallSymbol: string;
-  atmPutSymbol: string;
-  currentTab: 'call' | 'put';
-  atmCallPrice: number;
-  atmPutPrice: number;
-  atmCallTt: number;
-  atmPutTt: number;
-  onError?: (error: string) => void;
+  atmCallSymbol: string
+  atmPutSymbol: string
+  currentTab: "call" | "put"
+  atmCallPrice: number
+  atmPutPrice: number
+  atmCallTt: number
+  atmPutTt: number
 }
 
 interface ChartData {
-  [key: string]: {
-    series: ISeriesApi<"Candlestick">;
-    currentCandle: CandlestickData;
-    lastUpdate: number;
-  };
+  series: ISeriesApi<"Candlestick">
+  currentCandle: CandlestickData
+  lastUpdate: number
 }
 
 const convertToIST = (timestamp: number): Date => {
-  const date = new Date(timestamp * 1000);
-  return new Date(date.getTime() + (5.5 * 60 * 60 * 0)); // Add 5 hours and 30 minutes for IST
-};
+  const date = new Date(timestamp * 1000)
+  return new Date(date.getTime() + 5.5 * 60 * 60 * 0) // Add 5 hours and 30 minutes for IST
+}
 
 const formatTimeIST = (timestamp: UTCTimestamp): string => {
-  const date = convertToIST(timestamp);
-  return date.toLocaleTimeString('en-IN', {
-    hour: '2-digit',
-    minute: '2-digit',
+  const date = convertToIST(timestamp)
+  return date.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
     hour12: false,
-  });
-};
+  })
+}
 
-export function RealTimeChart({ 
-  atmCallSymbol, 
-  atmPutSymbol, 
-  currentTab, 
-  atmCallPrice, 
-  atmPutPrice, 
-  atmCallTt, 
+const isSignificantDeviation = (price: number, prevPrice: number, threshold = 0.1): boolean => {
+  if (!prevPrice) return false
+  const percentageChange = Math.abs((price - prevPrice) / prevPrice)
+  return percentageChange > threshold
+}
+
+export function RealTimeChart({
+  atmCallSymbol,
+  atmPutSymbol,
+  currentTab,
+  atmCallPrice,
+  atmPutPrice,
+  atmCallTt,
   atmPutTt,
-  onError 
 }: RealTimeChartWithTimeProps) {
-  const chartContainerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<IChartApi | null>(null);
-  const chartDataRef = useRef<ChartData>({});
-  const updateQueue = useRef<Map<string, { price: number; timestamp: number }>>(new Map());
-  const animationFrameRef = useRef<number | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
+  const chartContainerRef = useRef<HTMLDivElement>(null)
+  const chartRef = useRef<IChartApi | null>(null)
+  const chartDataRef = useRef<ChartData | null>(null)
+  const updateQueue = useRef<Map<string, { price: number; timestamp: number }>>(new Map())
+  const animationFrameRef = useRef<number | null>(null)
+  const [isInitialized, setIsInitialized] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isMounted, setIsMounted] = useState(false)
 
-  const processUpdateQueue = useCallback(() => {
-    updateQueue.current.forEach((data, symbol) => {
-      if (chartDataRef.current[symbol]) {
-        const { series, currentCandle } = chartDataRef.current[symbol];
-        const currentTime = data.timestamp;
-        const minuteTimestamp = Math.floor(currentTime / 60) * 60 as UTCTimestamp;
+  const fetchDataAndCreateSeries = useCallback(
+    async (symbol: string) => {
+      if (!chartRef.current) return
 
-        if (minuteTimestamp > currentCandle.time) {
-          // Create new candle
-          const newCandle: CandlestickData = {
-            time: minuteTimestamp,
-            open: currentCandle.close || data.price,
-            high: data.price,
-            low: data.price,
-            close: data.price,
-          };
-          series.update(currentCandle); // Update the last candle one final time
-          chartDataRef.current[symbol].currentCandle = newCandle;
-        } else {
-          // Update existing candle
-          currentCandle.high = Math.max(currentCandle.high, data.price);
-          currentCandle.low = Math.min(currentCandle.low, data.price);
-          currentCandle.close = data.price;
+      try {
+        console.log(`Fetching historical data for ${symbol}...`)
+        const data = await fetchHistoricalData(symbol)
+        console.log(`Historical data fetched for ${symbol}:`, { dataLength: data.length })
+
+        const convertDataToIST = (data: CandlestickData[]): CandlestickData[] => {
+          return data.map((candle) => ({
+            ...candle,
+            time: (convertToIST(candle.time as number).getTime() / 1000) as UTCTimestamp,
+          }))
         }
 
-        const istDate = convertToIST(currentTime);
-        const timeRemaining = 60 - istDate.getSeconds();
+        const dataIST = convertDataToIST(data)
 
-        series.applyOptions({
-          lastValueVisible: true,
-          priceFormat: {
-            type: 'price',
-            precision: 2,
-            minMove: 0.01,
-          },
-          title: `${timeRemaining}s`,
-        });
+        if (chartDataRef.current?.series) {
+          chartDataRef.current.series.setData(dataIST)
+        } else {
+          const series = chartRef.current.addCandlestickSeries({
+            upColor: "#148564",
+            downColor: "#DB542A",
+            borderVisible: false,
+            wickUpColor: "#148564",
+            wickDownColor: "#DB542A",
+            title: symbol.includes("C") ? "Call" : "Put",
+            visible: true,
+          })
+          series.setData(dataIST)
+          chartDataRef.current = {
+            series,
+            currentCandle: dataIST[dataIST.length - 1] || {
+              time: 0 as UTCTimestamp,
+              open: dataIST[dataIST.length - 1]?.close || 0,
+              high: 0,
+              low: 0,
+              close: 0,
+            },
+            lastUpdate: Date.now(),
+          }
+        }
 
-        // Update the series
-        series.update(chartDataRef.current[symbol].currentCandle);
-        chartDataRef.current[symbol].lastUpdate = Date.now();
+        console.log(`Chart series created and data set for ${symbol}`)
+      } catch (error) {
+        console.error(`Error initializing chart for ${symbol}:`, error)
+        setError(`Failed to initialize chart data for ${symbol}`)
       }
-    });
-
-    updateQueue.current.clear();
-    animationFrameRef.current = requestAnimationFrame(processUpdateQueue);
-  }, []);
+    },
+    [], // Removed unnecessary dependencies: chartRef, setError
+  )
 
   const updateChartData = useCallback((symbol: string, price: number, timestamp: number) => {
-    if (!price || !timestamp) return;
-    
-    updateQueue.current.set(symbol, { price, timestamp });
-  }, []);
+    if (!price || !timestamp || !chartDataRef.current) return
 
-  useEffect(() => {
-    animationFrameRef.current = requestAnimationFrame(processUpdateQueue);
-    
-    return () => {
-      if (animationFrameRef.current !== null) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [processUpdateQueue]);
+    const { series, currentCandle } = chartDataRef.current
+    const currentTime = timestamp
+    const minuteTimestamp = (Math.floor(currentTime / 60) * 60) as UTCTimestamp
 
-  const initializeChart = useCallback(async () => {
-    console.log('Initializing chart...');
-    console.log('isMounted:', isMounted);
-    console.log('chartContainerRef.current:', !!chartContainerRef.current);
-    
-    if (!isMounted || !chartContainerRef.current) {
-      console.log('Component not mounted or chart container not available yet');
-      return;
+    // Check for significant deviation
+    if (isSignificantDeviation(price, currentCandle.close)) {
+      console.log(`Ignoring significant price deviation for ${symbol}: ${price}`)
+      return
     }
 
-    if (!chartRef.current) {
-      console.log('Creating new chart instance');
+    if (minuteTimestamp > currentCandle.time) {
+      // Create new candle
+      const newCandle: CandlestickData = {
+        time: minuteTimestamp,
+        open: currentCandle.close || price,
+        high: price,
+        low: price,
+        close: price,
+      }
+      series.update(currentCandle) // Update the last candle one final time
+      chartDataRef.current.currentCandle = newCandle
+    } else {
+      // Update existing candle
+      currentCandle.high = Math.max(currentCandle.high, price)
+      currentCandle.low = Math.min(currentCandle.low, price)
+      currentCandle.close = price
+    }
+
+    const istDate = convertToIST(currentTime)
+    const timeRemaining = 60 - istDate.getSeconds()
+
+    series.applyOptions({
+      lastValueVisible: true,
+      priceFormat: {
+        type: "price",
+        precision: 2,
+        minMove: 0.01,
+      },
+      title: `${timeRemaining}s`,
+    })
+
+    // Update the series
+    series.update(chartDataRef.current.currentCandle)
+    chartDataRef.current.lastUpdate = Date.now()
+  }, [])
+
+  useEffect(() => {
+    setIsMounted(true)
+    return () => {
+      if (chartRef.current) {
+        chartRef.current.remove()
+        chartRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (isMounted && chartContainerRef.current && !chartRef.current) {
+      console.log("Creating new chart instance")
       chartRef.current = createChart(chartContainerRef.current, {
         width: chartContainerRef.current.clientWidth,
         height: chartContainerRef.current.clientHeight,
         layout: {
-          background: { type: 'solid', color: 'white' },
-          textColor: 'black',
+          background: { type: "solid", color: "white" },
+          textColor: "black",
         },
         grid: {
-          vertLines: { color: '#e0e0e0', style: LineStyle.Dashed },
-          horzLines: { color: '#e0e0e0', style: LineStyle.Dashed },
+          vertLines: { color: "#e0e0e0", style: LineStyle.Dashed },
+          horzLines: { color: "#e0e0e0", style: LineStyle.Dashed },
         },
         timeScale: {
           timeVisible: true,
@@ -150,162 +198,84 @@ export function RealTimeChart({
         crosshair: {
           vertLine: {
             labelVisible: true,
-            labelBackgroundColor: 'rgba(46, 46, 46, 0.8)',
+            labelBackgroundColor: "rgba(46, 46, 46, 0.8)",
           },
           horzLine: {
             labelVisible: true,
-            labelBackgroundColor: 'rgba(46, 46, 46, 0.8)',
+            labelBackgroundColor: "rgba(46, 46, 46, 0.8)",
           },
         },
         localization: {
           timeFormatter: (timestamp: UTCTimestamp) => formatTimeIST(timestamp),
         },
-      });
+      })
+      setIsInitialized(true)
     }
-
-    if (!atmCallSymbol || !atmPutSymbol) {
-      console.log('Waiting for valid symbols...');
-      return;
-    }
-
-    try {
-      console.log('Fetching historical data...');
-      const [callData, putData] = await Promise.all([
-        fetchHistoricalData(atmCallSymbol),
-        fetchHistoricalData(atmPutSymbol)
-      ]);
-      console.log('Historical data fetched:', { callDataLength: callData.length, putDataLength: putData.length });
-
-      // Convert timestamps to IST
-      const convertDataToIST = (data: CandlestickData[]): CandlestickData[] => {
-        return data.map(candle => ({
-          ...candle,
-          time: (convertToIST(candle.time as number).getTime() / 1000) as UTCTimestamp
-        }));
-      };
-
-      const callDataIST = convertDataToIST(callData);
-      const putDataIST = convertDataToIST(putData);
-
-      const callSeries = chartRef.current.addCandlestickSeries({
-        upColor: '#148564',
-        downColor: '#DB542A',
-        borderVisible: false,
-        wickUpColor: '#148564',
-        wickDownColor: '#DB542A',
-        title: 'Call',
-        visible: currentTab === 'call'
-      });
-
-      const putSeries = chartRef.current.addCandlestickSeries({
-        upColor: '#148564',
-        downColor: '#DB542A',
-        borderVisible: false,
-        wickUpColor: '#148564',
-        wickDownColor: '#DB542A',
-        title: 'Put',
-        visible: currentTab === 'put'
-      });
-
-      callSeries.setData(callDataIST);
-      putSeries.setData(putDataIST);
-
-      chartDataRef.current = {
-        [atmCallSymbol]: {
-          series: callSeries,
-          currentCandle: callDataIST[callDataIST.length - 1] || {
-            time: 0 as UTCTimestamp,
-            open: callDataIST[callDataIST.length - 1]?.close || 0,
-            high: 0,
-            low: 0,
-            close: 0
-          },
-          lastUpdate: Date.now()
-        },
-        [atmPutSymbol]: {
-          series: putSeries,
-          currentCandle: putDataIST[putDataIST.length - 1] || {
-            time: 0 as UTCTimestamp,
-            open: putDataIST[putDataIST.length - 1]?.close || 0,
-            high: 0,
-            low: 0,
-            close: 0
-          },
-          lastUpdate: Date.now()
-        }
-      };
-
-      setIsInitialized(true);
-      console.log('Chart initialized successfully');
-    } catch (error) {
-      console.error('Error initializing chart:', error);
-      setError('Failed to initialize chart data');
-      onError?.('Failed to initialize chart data');
-    }
-  }, [atmCallSymbol, atmPutSymbol, currentTab, onError, isMounted]);
+  }, [isMounted])
 
   useEffect(() => {
-    setIsMounted(true);
-    return () => {
-      if (chartRef.current) {
-        chartRef.current.remove();
-        chartRef.current = null;
+    if (isInitialized) {
+      const symbol = currentTab === "call" ? atmCallSymbol : atmPutSymbol
+      fetchDataAndCreateSeries(symbol)
+
+      // Clear existing series
+      if (chartRef.current && chartDataRef.current) {
+        chartRef.current.removeSeries(chartDataRef.current.series)
+        chartDataRef.current = null
       }
-    };
-  }, []);
+    }
+  }, [isInitialized, currentTab, atmCallSymbol, atmPutSymbol, fetchDataAndCreateSeries])
 
   useEffect(() => {
-    if (isMounted && !isInitialized) {
-      initializeChart();
+    if (isInitialized) {
+      const symbol = currentTab === "call" ? atmCallSymbol : atmPutSymbol
+      fetchDataAndCreateSeries(symbol)
     }
-  }, [isMounted, isInitialized, initializeChart]);
+  }, [isInitialized, currentTab, atmCallSymbol, atmPutSymbol, fetchDataAndCreateSeries])
 
   useEffect(() => {
     if (chartRef.current && isInitialized) {
-      Object.entries(chartDataRef.current).forEach(([symbol, { series }]) => {
-        const isVisible = (currentTab === 'call' && symbol === atmCallSymbol) || 
-                         (currentTab === 'put' && symbol === atmPutSymbol);
-        series.applyOptions({ visible: isVisible });
-      });
       chartRef.current.applyOptions({
         watermark: {
-          text: currentTab === 'call' ? 'Call Option' : 'Put Option',
+          text: currentTab === "call" ? "Call Option" : "Put Option",
           visible: true,
           fontSize: 24,
-          horzAlign: 'center',
-          vertAlign: 'center',
+          horzAlign: "center",
+          vertAlign: "center",
         },
-      });
+      })
     }
-  }, [atmCallSymbol, atmPutSymbol, currentTab, isInitialized]);
+  }, [currentTab, isInitialized])
 
-  // Update both call and put data independently
   useEffect(() => {
     if (isInitialized && atmCallPrice && atmCallTt) {
-      updateChartData(atmCallSymbol, atmCallPrice, atmCallTt);
+      if (currentTab === "call") {
+        updateChartData(atmCallSymbol, atmCallPrice, atmCallTt)
+      }
     }
-  }, [isInitialized, atmCallPrice, atmCallTt, atmCallSymbol, updateChartData]);
+  }, [isInitialized, currentTab, atmCallPrice, atmCallTt, atmCallSymbol, updateChartData])
 
   useEffect(() => {
     if (isInitialized && atmPutPrice && atmPutTt) {
-      updateChartData(atmPutSymbol, atmPutPrice, atmPutTt);
+      if (currentTab === "put") {
+        updateChartData(atmPutSymbol, atmPutPrice, atmPutTt)
+      }
     }
-  }, [isInitialized, atmPutPrice, atmPutTt, atmPutSymbol, updateChartData]);
+  }, [isInitialized, currentTab, atmPutPrice, atmPutTt, atmPutSymbol, updateChartData])
 
-  // Resize handler
   useEffect(() => {
     const handleResize = () => {
       if (chartRef.current && chartContainerRef.current) {
         chartRef.current.applyOptions({
           width: chartContainerRef.current.clientWidth,
           height: chartContainerRef.current.clientHeight,
-        });
+        })
       }
-    };
+    }
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
 
   return (
     <Card className="w-1500 h-full">
@@ -317,12 +287,12 @@ export function RealTimeChart({
             </div>
           ) : !isInitialized ? (
             <div className="flex items-center justify-center w-full h-full">
-              <p>Initializing chart... {atmCallSymbol ? `Call: ${atmCallSymbol}` : 'Waiting for Call symbol'}, {atmPutSymbol ? `Put: ${atmPutSymbol}` : 'Waiting for Put symbol'}</p>
+              <p>Initializing chart... {currentTab === "call" ? atmCallSymbol : atmPutSymbol}</p>
             </div>
           ) : null}
         </div>
       </CardContent>
     </Card>
-  );
+  )
 }
 

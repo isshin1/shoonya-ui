@@ -23,10 +23,10 @@ interface PositionsCardProps {
 
 export function PositionsCard({ positions }: PositionsCardProps) {
   return (
-    <Card className="h-[250px] overflow-y-auto">
-      <CardHeader className="p-2">
+    <Card className="h-[200px] overflow-y-auto">
+      {/* <CardHeader className="p-2">
         <CardTitle>Positions</CardTitle>
-      </CardHeader>
+      </CardHeader> */}
       <CardContent className="p-2 text-sm">
         <Tabs defaultValue="active" className="h-full flex flex-col">
           <TabsList className="grid w-full grid-cols-2">

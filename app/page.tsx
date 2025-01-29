@@ -257,23 +257,27 @@ export default function Home() {
       <SidebarProvider defaultOpen={false}>
         <AppSidebar />
         <SidebarInset className="flex flex-col w-full">
-          <header className="flex justify-between items-center p-4 border-b">
-            <div className="flex-1">
-              <div className="text-left cursor-pointer p-2" onClick={fetchQuoteCallback}>
-                <p className="text-sm italic inline-block hover:bg-gray-100 px-2 py-1 rounded transition-colors">
+          <header className="flex items-center h-10 border-b">
+            <div className="flex-grow">
+              <div className="text-left cursor-pointer pl-2" onClick={fetchQuoteCallback}>
+                <p className="text-xs italic inline-block hover:bg-gray-100 rounded transition-colors px-1">
                   {isLoading.quote ? "Fetching quote..." : quote || "No quote available"}
                 </p>
               </div>
             </div>
-            <div className="flex-1 flex justify-center">
+            <div className="flex-shrink-0 mx-4">
               {timerLeft && timerLeft !== "00:00" && (
-                <div className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Next order in: {timerLeft}</div>
+                <div className="h-full flex items-center px-3 bg-yellow-100 text-yellow-800">
+                  Next order in: {timerLeft}
+                </div>
               )}
             </div>
-            <div className="flex-1 flex justify-end space-x-2">
+            <div className="flex-shrink-0 flex space-x-2">
               <Dialog open={isAddMoneyOpen} onOpenChange={setIsAddMoneyOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline">Add Money</Button>
+                  <Button variant="ghost" className="h-full px-3">
+                    Add Money
+                  </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
@@ -290,7 +294,9 @@ export default function Home() {
               </Dialog>
               <AlertDialog open={isEndSessionOpen} onOpenChange={setIsEndSessionOpen}>
                 <AlertDialogTrigger asChild>
-                  <Button variant="destructive">End Session</Button>
+                  <Button variant="ghost" className="h-full px-3 text-red-500 hover:text-red-700">
+                    End Session
+                  </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
@@ -308,9 +314,9 @@ export default function Home() {
           <div className="flex-1 overflow-hidden">
             <Resizable defaultSize={30} minSize={20} maxSize={80}>
               <div className="h-full overflow-y-auto pr-4">
-                <Card className="mb-4">
+                <Card className="mb-4 border-none">
                   <CardContent className="space-y-4">
-                    <Card>
+                    <Card className="border-none">
                       <CardContent className="p-4 text-sm">
                         <Tabs
                           defaultValue="call"
@@ -491,7 +497,7 @@ export default function Home() {
                       plan={plan}
                       setPlan={setPlan}
                     />
-                    <Card>
+                    <Card className="border-none">
                       <CardHeader className="p-4">
                         <CardTitle>Open Orders</CardTitle>
                       </CardHeader>
@@ -570,7 +576,7 @@ export default function Home() {
                 </Card>
               </div>
               <div className="h-full flex flex-col">
-                <Card className="flex-grow overflow-y-auto mb-4">
+                <Card className="flex-grow overflow-y-auto mb-4 border-none">
                   <CardHeader className="p-2">
                     <CardTitle>
                       {currentTab === "call" ? convertString(atmCall.symbol) : convertString(atmPut.symbol)}
@@ -588,7 +594,7 @@ export default function Home() {
                     />
                   </CardContent>
                 </Card>
-                <PositionsCard positions={positions} />
+                <PositionsCard positions={positions} className="border-none" />
               </div>
             </Resizable>
           </div>

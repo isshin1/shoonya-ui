@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
-import { Home, Calendar, DollarSign } from 'lucide-react'
-import Link from 'next/link'
+import React, { useState } from "react"
+import { Home, Calendar, DollarSign } from "lucide-react"
+import Link from "next/link"
 import {
   Sidebar,
   SidebarContent,
@@ -11,32 +11,32 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarTrigger,
-  SidebarRail
-} from '@/components/ui/sidebar'
+  SidebarRail,
+} from "@/components/ui/sidebar"
 
 const navItems = [
-  { title: 'Main', icon: Home, href: '/' },
-  { title: 'Economic Calendar', icon: Calendar, href: '/economic-calendar' },
-  { title: 'PnL Calendar', icon: DollarSign, href: '/pnl-calendar' },
+  { title: "Main", icon: Home, href: "/" },
+  { title: "Economic Calendar", icon: Calendar, href: "/economic-calendar" },
+  { title: "PnL Calendar", icon: DollarSign, href: "/pnl-calendar" },
 ]
 
 export function AppSidebar({ onCollapsedChange }: { onCollapsedChange: (collapsed: boolean) => void }) {
   const [isCollapsed, setIsCollapsed] = useState(true)
 
   return (
-    <Sidebar 
-      className="h-[calc(100vh-4rem)] border-r relative z-10 transition-all duration-300 ease-in-out p-0" 
+    <Sidebar
+      className="h-[calc(100vh-4rem)] border-r relative z-10 transition-all duration-300 ease-in-out p-0"
       collapsible="icon"
       defaultCollapsed={true}
-      style={{ width: isCollapsed ? '4rem' : '16rem' }}
+      style={{ width: isCollapsed ? "3rem" : "12rem" }}
     >
       <SidebarHeader>
-        <SidebarTrigger 
-          className="w-8 h-8 transition-transform duration-300 ease-in-out" 
+        <SidebarTrigger
+          className="w-5 h-5 transition-transform duration-300 ease-in-out"
           onClick={() => {
-            const newCollapsedState = !isCollapsed;
-            setIsCollapsed(newCollapsedState);
-            onCollapsedChange(newCollapsedState);
+            const newCollapsedState = !isCollapsed
+            setIsCollapsed(newCollapsedState)
+            onCollapsedChange(newCollapsedState)
           }}
         />
       </SidebarHeader>
@@ -47,9 +47,11 @@ export function AppSidebar({ onCollapsedChange }: { onCollapsedChange: (collapse
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild className="w-full justify-start">
-                    <Link href={item.href} className="flex items-center w-full px-4 py-2">
-                      <item.icon className="mr-2 h-4 w-4 flex-shrink-0" />
-                      <span className={`transition-opacity duration-300 ease-in-out ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>
+                    <Link href={item.href} className="flex items-center w-full px-3 py-2">
+                      <item.icon className="h-3 w-3 flex-shrink-0" />
+                      <span
+                        className={`transition-opacity duration-300 ease-in-out ${isCollapsed ? "opacity-0" : "opacity-100"}`}
+                      >
                         {item.title}
                       </span>
                     </Link>
@@ -64,3 +66,4 @@ export function AppSidebar({ onCollapsedChange }: { onCollapsedChange: (collapse
     </Sidebar>
   )
 }
+

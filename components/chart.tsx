@@ -7,7 +7,8 @@ import {
   type UTCTimestamp,
   LineStyle,
 } from "lightweight-charts"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { fetchHistoricalData } from "@/app/api/chartData"
 
 interface RealTimeChartWithTimeProps {
@@ -46,6 +47,41 @@ const isSignificantDeviation = (price: number, prevPrice: number, threshold = 0.
   return percentageChange > threshold
 }
 
+function aggregateToThreeMinutes(data: CandlestickData[]) {
+  const result = []
+
+  for (let i = 0; i < data.length; i += 3) {
+    const open = data[i].open
+    const high = Math.max(
+      data[i].high,
+      data[i + 1]?.high || Number.NEGATIVE_INFINITY,
+      data[i + 2]?.high || Number.NEGATIVE_INFINITY,
+    )
+    const low = Math.min(
+      data[i].low,
+      data[i + 1]?.low || Number.POSITIVE_INFINITY,
+      data[i + 2]?.low || Number.POSITIVE_INFINITY,
+    )
+    const close = data[i + 2]?.close || data[i + 1]?.close || data[i].close
+    const time = data[i + 2]?.time || data[i + 1]?.time || data[i].time
+    // const volume = (data[i].volume || 0) + (data[i + 1]?.volume || 0) + (data[i + 2]?.volume || 0);
+
+    result.push({ open, high, low, close, time })
+  }
+
+  return result
+}
+
+function isEmpty(value: string) {
+  return (
+    value === null ||
+    value === undefined ||
+    value === "" ||
+    (Array.isArray(value) && value.length === 0) ||
+    (typeof value === "object" && Object.keys(value).length === 0)
+  )
+}
+
 export function RealTimeChart({
   atmCallSymbol,
   atmPutSymbol,
@@ -58,15 +94,15 @@ export function RealTimeChart({
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const chartDataRef = useRef<ChartData | null>(null)
-  const updateQueue = useRef<Map<string, { price: number; timestamp: number }>>(new Map())
-  const animationFrameRef = useRef<number | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isMounted, setIsMounted] = useState(false)
+  const [timeframe, setTimeframe] = useState<"1m" | "3m">("1m")
+  const [historicalData, setHistoricalData] = useState<CandlestickData[]>([])
 
   const fetchDataAndCreateSeries = useCallback(
     async (symbol: string) => {
-      if (!chartRef.current) return
+      if (!chartRef.current || isEmpty(symbol)) return
 
       try {
         console.log(`Fetching historical data for ${symbol}...`)
@@ -81,9 +117,12 @@ export function RealTimeChart({
         }
 
         const dataIST = convertDataToIST(data)
+        setHistoricalData(dataIST)
+
+        const seriesData = timeframe === "3m" ? aggregateToThreeMinutes(dataIST) : dataIST
 
         if (chartDataRef.current?.series) {
-          chartDataRef.current.series.setData(dataIST)
+          chartDataRef.current.series.setData(seriesData)
         } else {
           const series = chartRef.current.addCandlestickSeries({
             upColor: "#148564",
@@ -94,12 +133,12 @@ export function RealTimeChart({
             title: symbol.includes("C") ? "Call" : "Put",
             visible: true,
           })
-          series.setData(dataIST)
+          series.setData(seriesData)
           chartDataRef.current = {
             series,
-            currentCandle: dataIST[dataIST.length - 1] || {
+            currentCandle: seriesData[seriesData.length - 1] || {
               time: 0 as UTCTimestamp,
-              open: dataIST[dataIST.length - 1]?.close || 0,
+              open: seriesData[seriesData.length - 1]?.close || 0,
               high: 0,
               low: 0,
               close: 0,
@@ -114,57 +153,102 @@ export function RealTimeChart({
         setError(`Failed to initialize chart data for ${symbol}`)
       }
     },
-    [], // Removed unnecessary dependencies: chartRef, setError
+    [timeframe],
   )
 
-  const updateChartData = useCallback((symbol: string, price: number, timestamp: number) => {
-    if (!price || !timestamp || !chartDataRef.current) return
+  const updateChartData = useCallback(
+    (symbol: string, price: number, timestamp: number) => {
+      if (!price || !timestamp || !chartDataRef.current) return
 
-    const { series, currentCandle } = chartDataRef.current
-    const currentTime = timestamp
-    const minuteTimestamp = (Math.floor(currentTime / 60) * 60) as UTCTimestamp
+      const { series, currentCandle } = chartDataRef.current
+      const currentTime = timestamp
+      const minuteTimestamp = (Math.floor(currentTime / 60) * 60) as UTCTimestamp
 
-    // Check for significant deviation
-    if (isSignificantDeviation(price, currentCandle.close)) {
-      console.log(`Ignoring significant price deviation for ${symbol}: ${price}`)
-      return
-    }
-
-    if (minuteTimestamp > currentCandle.time) {
-      // Create new candle
-      const newCandle: CandlestickData = {
-        time: minuteTimestamp,
-        open: currentCandle.close || price,
-        high: price,
-        low: price,
-        close: price,
+      // Check for significant deviation
+      if (isSignificantDeviation(price, currentCandle.close)) {
+        console.log(`Ignoring significant price deviation for ${symbol}: ${price}`)
+        return
       }
-      series.update(currentCandle) // Update the last candle one final time
-      chartDataRef.current.currentCandle = newCandle
-    } else {
-      // Update existing candle
-      currentCandle.high = Math.max(currentCandle.high, price)
-      currentCandle.low = Math.min(currentCandle.low, price)
-      currentCandle.close = price
-    }
 
-    const istDate = convertToIST(currentTime)
-    const timeRemaining = 60 - istDate.getSeconds()
+      const shouldCreateNewCandle =
+        timeframe === "1m"
+          ? minuteTimestamp > currentCandle.time
+          : Math.floor(minuteTimestamp / (3 * 60)) > Math.floor((currentCandle.time as number) / (3 * 60))
 
-    series.applyOptions({
-      lastValueVisible: true,
-      priceFormat: {
-        type: "price",
-        precision: 2,
-        minMove: 0.01,
-      },
-      title: `${timeRemaining}s`,
-    })
+      if (shouldCreateNewCandle) {
+        // Create new candle
+        const newCandle: CandlestickData = {
+          time:
+            timeframe === "1m" ? minuteTimestamp : ((Math.floor(minuteTimestamp / (3 * 60)) * 3 * 60) as UTCTimestamp),
+          open: currentCandle.close || price,
+          high: price,
+          low: price,
+          close: price,
+        }
+        series.update(currentCandle) // Update the last candle one final time
+        chartDataRef.current.currentCandle = newCandle
 
-    // Update the series
-    series.update(chartDataRef.current.currentCandle)
-    chartDataRef.current.lastUpdate = Date.now()
-  }, [])
+        // Update historical data
+        setHistoricalData((prevData) => [...prevData, newCandle])
+
+        if (timeframe === "3m") {
+          try {
+            const lastThreeCandles = historicalData.slice(-3)
+            const aggregatedCandle = aggregateToThreeMinutes(lastThreeCandles)[0]
+            series.update(aggregatedCandle)
+          } catch (error) {
+            console.error(error)
+          }
+        }
+      } else {
+        // Update existing candle
+        currentCandle.high = Math.max(currentCandle.high, price)
+        currentCandle.low = Math.min(currentCandle.low, price)
+        currentCandle.close = price
+
+        if (timeframe === "3m") {
+          try {
+            const lastThreeCandles = historicalData.slice(-3)
+            const updatedAggregatedCandle = aggregateToThreeMinutes([...lastThreeCandles.slice(0, 2), currentCandle])[0]
+            series.update(updatedAggregatedCandle)
+          } catch (error) {
+            console.log(`unable to update candle ${error}`)
+          }
+        } else {
+          series.update(currentCandle)
+        }
+      }
+
+      const istDate = convertToIST(currentTime)
+      let timeRemainingString: string
+
+      if (timeframe === "1m") {
+        const totalSeconds = 60 - istDate.getSeconds()
+        const minutes = Math.floor(totalSeconds / 60)
+        const seconds = totalSeconds % 60
+        timeRemainingString = minutes > 0 ? `${minutes}m${seconds}s` : `${seconds}s`
+      } else if (timeframe === "3m") {
+        // 3m timeframe
+        const totalSeconds = 180 - ((istDate.getMinutes() % 3) * 60 + istDate.getSeconds())
+        const minutes = Math.floor(totalSeconds / 60)
+        const seconds = totalSeconds % 60
+        timeRemainingString = minutes > 0 ? `${minutes}m${seconds}s` : `${seconds}s`
+      }
+
+      series.applyOptions({
+        lastValueVisible: true,
+        priceFormat: {
+          type: "price",
+          precision: 2,
+          minMove: 0.01,
+        },
+        title: timeRemainingString,
+      })
+
+      chartDataRef.current.lastUpdate = Date.now()
+    },
+    [timeframe, historicalData],
+  )
 
   useEffect(() => {
     setIsMounted(true)
@@ -227,13 +311,6 @@ export function RealTimeChart({
   }, [isInitialized, currentTab, atmCallSymbol, atmPutSymbol, fetchDataAndCreateSeries])
 
   useEffect(() => {
-    if (isInitialized) {
-      const symbol = currentTab === "call" ? atmCallSymbol : atmPutSymbol
-      fetchDataAndCreateSeries(symbol)
-    }
-  }, [isInitialized, currentTab, atmCallSymbol, atmPutSymbol, fetchDataAndCreateSeries])
-
-  useEffect(() => {
     if (chartRef.current && isInitialized) {
       chartRef.current.applyOptions({
         watermark: {
@@ -277,9 +354,34 @@ export function RealTimeChart({
     return () => window.removeEventListener("resize", handleResize)
   }, [])
 
+  const handleTimeframeChange = (newTimeframe: "1m" | "3m") => {
+    setTimeframe(newTimeframe)
+    if (chartDataRef.current) {
+      const newData = newTimeframe === "3m" ? aggregateToThreeMinutes(historicalData) : historicalData
+      chartDataRef.current.series.setData(newData)
+    }
+  }
+
+  const convertString = (str: string) => {
+    return str.replace(/[^a-zA-Z0-9]/g, "")
+  }
+
   return (
-    <Card className="w-1500 h-full">
-      <CardContent className="p-0 h-full">
+    <Card className="w-1000 h-full">
+      <CardHeader className="p-4">
+        <CardTitle className="flex justify-between items-center">
+          {/* <span>{currentTab === "call" ? convertString(atmCallSymbol) : convertString(atmPutSymbol)}</span> */}
+          <div className="space-x-2">
+            <Button variant={timeframe === "1m" ? "default" : "outline"} onClick={() => handleTimeframeChange("1m")}>
+              1m
+            </Button>
+            <Button variant={timeframe === "3m" ? "default" : "outline"} onClick={() => handleTimeframeChange("3m")}>
+              3m
+            </Button>
+          </div>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-0 h-[calc(90%-5rem)]">
         <div ref={chartContainerRef} className="w-full h-full">
           {error ? (
             <div className="flex items-center justify-center w-full h-full">

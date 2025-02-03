@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useState } from "react"
+import { useEffect, useRef, useCallback, useState } from "react"
 import {
   createChart,
   type IChartApi,
@@ -47,7 +47,7 @@ const isSignificantDeviation = (price: number, prevPrice: number, threshold = 0.
   return percentageChange > threshold
 }
 
-function aggregateToThreeMinutes(data: CandlestickData[]) {
+function aggregateToThreeMinutes2(data: CandlestickData[]) {
   const result = []
 
   for (let i = 0; i < data.length; i += 3) {
@@ -63,13 +63,43 @@ function aggregateToThreeMinutes(data: CandlestickData[]) {
       data[i + 2]?.low || Number.POSITIVE_INFINITY,
     )
     const close = data[i + 2]?.close || data[i + 1]?.close || data[i].close
-    const time = data[i + 2]?.time || data[i + 1]?.time || data[i].time
-    // const volume = (data[i].volume || 0) + (data[i + 1]?.volume || 0) + (data[i + 2]?.volume || 0);
+    const time = data[i]?.time || data[i + 1]?.time || data[i + 2].time
 
     result.push({ open, high, low, close, time })
   }
 
   return result
+}
+
+function aggregateToThreeMinutes(data: CandlestickData[]) {
+  const threeMinuteCandles = []
+
+  try {
+    for (let i = 0; i < data.length; i += 3) {
+      const batch = data.slice(i, i + 3)
+
+      const open = batch[0].open
+      const close = batch[batch.length - 1].close
+      const high = Math.max(...batch.map((candle) => candle.high))
+      const low = Math.min(...batch.map((candle) => candle.low))
+      // const volume = batch.reduce((acc, candle) => acc + candle.volume, 0);
+
+      const threeMinuteCandle = {
+        open: open,
+        close: close,
+        high: high,
+        low: low,
+        // volume: volume,
+        time: batch[0].time, // Start time of the first candle in the batch
+      }
+
+      threeMinuteCandles.push(threeMinuteCandle)
+    }
+  } catch (error) {
+    console.error(`Error manufacturing 3m data:`, error)
+  }
+
+  return threeMinuteCandles
 }
 
 function isEmpty(value: string) {
@@ -97,7 +127,7 @@ export function RealTimeChart({
   const [isInitialized, setIsInitialized] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isMounted, setIsMounted] = useState(false)
-  const [timeframe, setTimeframe] = useState<"1m" | "3m">("1m")
+  const [timeframe, setTimeframe] = useState<"1m" | "3m">("3m") // Update: Default timeframe to "3m"
   const [historicalData, setHistoricalData] = useState<CandlestickData[]>([])
 
   const fetchDataAndCreateSeries = useCallback(
@@ -180,7 +210,7 @@ export function RealTimeChart({
         const newCandle: CandlestickData = {
           time:
             timeframe === "1m" ? minuteTimestamp : ((Math.floor(minuteTimestamp / (3 * 60)) * 3 * 60) as UTCTimestamp),
-          open: currentCandle.close || price,
+          open: currentCandle.close, // Use the previous candle's close as the new candle's open
           high: price,
           low: price,
           close: price,
@@ -194,11 +224,13 @@ export function RealTimeChart({
         if (timeframe === "3m") {
           try {
             const lastThreeCandles = historicalData.slice(-3)
-            const aggregatedCandle = aggregateToThreeMinutes(lastThreeCandles)[0]
+            const aggregatedCandle = aggregateToThreeMinutes([...lastThreeCandles, newCandle])[0]
             series.update(aggregatedCandle)
           } catch (error) {
             console.error(error)
           }
+        } else {
+          series.update(newCandle)
         }
       } else {
         // Update existing candle
@@ -367,8 +399,8 @@ export function RealTimeChart({
   }
 
   return (
-    <Card className="w-1000 h-full">
-      <CardHeader className="p-4">
+    <Card className="w-1000 h-full border-none shadow-none">
+      <CardHeader className="p-4 border-none">
         <CardTitle className="flex justify-between items-center">
           {/* <span>{currentTab === "call" ? convertString(atmCallSymbol) : convertString(atmPutSymbol)}</span> */}
           <div className="space-x-2">

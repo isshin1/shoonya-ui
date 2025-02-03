@@ -314,9 +314,9 @@ export default function Home() {
           <div className="flex-1 overflow-hidden">
             <Resizable defaultSize={30} minSize={20} maxSize={80}>
               <div className="h-full overflow-y-auto pr-4">
-                <Card className="mb-4 border-none">
+                <Card className="mb-4">
                   <CardContent className="space-y-4">
-                    <Card className="border-none">
+                    <Card>
                       <CardContent className="p-4 text-sm">
                         <Tabs
                           defaultValue="call"
@@ -366,7 +366,6 @@ export default function Home() {
                                 <TabsContent value="LMT" className="space-y-4 pt-4">
                                   <div>
                                     <label htmlFor="callPrice" className="block text-sm font-medium text-gray-700">
-                                      Price
                                     </label>
                                     <Input
                                       id="callPrice"
@@ -387,7 +386,6 @@ export default function Home() {
                                 <TabsContent value="SL-LMT" className="space-y-4 pt-4">
                                   <div>
                                     <label htmlFor="callStopPrice" className="block text-sm font-medium text-gray-700">
-                                      Price
                                     </label>
                                     <Input
                                       id="callStopPrice"
@@ -466,7 +464,6 @@ export default function Home() {
                                 <TabsContent value="SL-LMT" className="space-y-4 pt-4">
                                   <div>
                                     <label htmlFor="putStopPrice" className="block text-sm font-medium text-gray-700">
-                                      Price
                                     </label>
                                     <Input
                                       id="putStopPrice"
@@ -491,13 +488,13 @@ export default function Home() {
                         </Tabs>
                       </CardContent>
                     </Card>
-                    <PlanInputs
+                    {/* <PlanInputs
                       planInputs={planInputs}
                       handlePlanInputChange={handlePlanInputChange}
                       plan={plan}
                       setPlan={setPlan}
-                    />
-                    <Card className="border-none">
+                    /> */}
+                    <Card>
                       <CardHeader className="p-4">
                         <CardTitle>Open Orders</CardTitle>
                       </CardHeader>
@@ -576,7 +573,7 @@ export default function Home() {
                 </Card>
               </div>
               <div className="h-full flex flex-col">
-                <Card className="flex-grow overflow-y-auto mb-4 border-none">
+                <Card className="flex-grow overflow-y-auto mb-4">
                   <CardHeader className="p-2">
                     <CardTitle>
                       {currentTab === "call" ? convertString(atmCall.symbol) : convertString(atmPut.symbol)}
@@ -594,7 +591,13 @@ export default function Home() {
                     />
                   </CardContent>
                 </Card>
-                <PositionsCard positions={positions} className="border-none" />
+                {/* <PositionsCard positions={positions} /> */}
+                <PlanInputs
+                      planInputs={planInputs}
+                      handlePlanInputChange={handlePlanInputChange}
+                      plan={plan}
+                      setPlan={setPlan}
+                    />
               </div>
             </Resizable>
           </div>
@@ -624,7 +627,6 @@ export default function Home() {
           <div className="space-y-4">
             <div>
               <label htmlFor="newPrice" className="block text-sm font-medium text-gray-700 pb-2">
-                New Price
               </label>
               <Input
                 id="newPrice"

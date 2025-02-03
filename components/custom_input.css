@@ -2,4 +2,9 @@
 .input-no-ring:focus {
     --tw-ring-offset-width: 0;
     --tw-ring-shadow: none;
+    --tw-ring-offset-color: red;  
+    --tw-ring-color: blue;  
+
   }
+
+  

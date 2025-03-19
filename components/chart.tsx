@@ -1,3 +1,5 @@
+"use client"
+
 import { useEffect, useRef, useCallback, useState } from "react"
 import {
   createChart,
@@ -8,7 +10,6 @@ import {
   LineStyle,
 } from "lightweight-charts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { fetchHistoricalData } from "@/app/api/chartData"
 
 interface RealTimeChartWithTimeProps {
@@ -29,7 +30,7 @@ interface ChartData {
 
 const convertToIST = (timestamp: number): Date => {
   const date = new Date(timestamp * 1000)
-  return new Date(date.getTime() + 5.5 * 60 * 60 * 0) // Add 5 hours and 30 minutes for IST
+  return new Date(date.getTime() + 5.5 * 60 * 60 * 1000 * 0) // Add 5 hours and 30 minutes for IST
 }
 
 const formatTimeIST = (timestamp: UTCTimestamp): string => {
@@ -45,35 +46,6 @@ const isSignificantDeviation = (price: number, prevPrice: number, threshold = 0.
   if (!prevPrice) return false
   const percentageChange = Math.abs((price - prevPrice) / prevPrice)
   return percentageChange > threshold
-}
-
-function aggregateToThreeMinutes(data: CandlestickData[]) {
-  const threeMinuteCandles = []
-
-  try {
-    for (let i = 0; i < data.length; i += 3) {
-      const batch = data.slice(i, i + 3)
-
-      const open = batch[0].open
-      const close = batch[batch.length - 1].close
-      const high = Math.max(...batch.map((candle) => candle.high))
-      const low = Math.min(...batch.map((candle) => candle.low))
-
-      const threeMinuteCandle = {
-        open: open,
-        close: close,
-        high: high,
-        low: low,
-        time: batch[0].time, // Start time of the first candle in the batch
-      }
-
-      threeMinuteCandles.push(threeMinuteCandle)
-    }
-  } catch (error) {
-    console.error(`Error manufacturing 3m data:`, error)
-  }
-
-  return threeMinuteCandles
 }
 
 function isEmpty(value: string) {
@@ -97,15 +69,19 @@ export function RealTimeChart({
 }: RealTimeChartWithTimeProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
-  const chartDataRef = useRef<ChartData | null>(null)
+  const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isMounted, setIsMounted] = useState(false)
-  const [timeframe, setTimeframe] = useState<"1m" | "3m">("3m")
   const [historicalData, setHistoricalData] = useState<CandlestickData[]>([])
+  const lastUpdateRef = useRef<number>(0)
 
   const createNewSeries = useCallback((symbol: string) => {
     if (!chartRef.current) return null
+
+    if (seriesRef.current) {
+      chartRef.current.removeSeries(seriesRef.current)
+    }
 
     const newSeries = chartRef.current.addCandlestickSeries({
       upColor: "#148564",
@@ -117,6 +93,7 @@ export function RealTimeChart({
       visible: true,
     })
 
+    seriesRef.current = newSeries
     return newSeries
   }, [])
 
@@ -136,31 +113,14 @@ export function RealTimeChart({
           }))
         }
 
-        const dataIST = convertDataToIST(data)
+        // const dataIST = convertDataToIST(data)
+        const dataIST = data
         setHistoricalData(dataIST)
-
-        const seriesData = timeframe === "3m" ? aggregateToThreeMinutes(dataIST) : dataIST
-
-        // Remove existing series if it exists
-        if (chartRef.current && chartDataRef.current?.series) {
-          chartRef.current.removeSeries(chartDataRef.current.series);
-        }
 
         // Create new series
         const newSeries = createNewSeries(symbol)
         if (newSeries) {
-          newSeries.setData(seriesData)
-          chartDataRef.current = {
-            series: newSeries,
-            currentCandle: seriesData[seriesData.length - 1] || {
-              time: 0 as UTCTimestamp,
-              open: seriesData[seriesData.length - 1]?.close || 0,
-              high: 0,
-              low: 0,
-              close: 0,
-            },
-            lastUpdate: Date.now(),
-          }
+          newSeries.setData(dataIST)
         }
 
         console.log(`Chart series created and data set for ${symbol}`)
@@ -169,126 +129,73 @@ export function RealTimeChart({
         setError(`Failed to initialize chart data for ${symbol}`)
       }
     },
-    [timeframe, createNewSeries],
+    [createNewSeries],
   )
-  
-  // Function to check if a time is a multiple of 3 minutes
-  const isMultipleOfThreeMinutes = (epochTime) => {
-    // Convert epoch time to minutes
-    let minutes = epochTime / 60;
-    // Check if minutes are a multiple of 3
-    return minutes % 3 === 0;
-  };
 
   const updateChartData = useCallback(
     (symbol: string, price: number, timestamp: number) => {
-      if (!price || !timestamp || !chartDataRef.current) return
-
-      const { series, currentCandle } = chartDataRef.current
-      const currentTime = timestamp
-      const minuteTimestamp = (Math.floor(currentTime / 60) * 60) as UTCTimestamp
-
-      if (isSignificantDeviation(price, currentCandle.close)) {
-        console.log(`Ignoring significant price deviation for ${symbol}: ${price}`)
+      if (!price || !timestamp || !seriesRef.current) {
+        console.log("Missing data for update:", { price, timestamp, seriesExists: !!seriesRef.current })
         return
       }
 
-      const shouldCreateNewCandle =
-        timeframe === "1m"
-          ? minuteTimestamp > currentCandle.time
-          : Math.floor(minuteTimestamp / (3 * 60)) > Math.floor((currentCandle.time as number) / (3 * 60))
+      console.log("Updating chart data:", { symbol, price, timestamp })
 
-      if (shouldCreateNewCandle) {
+      const currentTime = timestamp
+      const threeMinuteTimestamp = (Math.floor(currentTime / (3 * 60)) * 3 * 60) as UTCTimestamp
+
+      // Ensure we're not processing duplicate or old data
+      if (threeMinuteTimestamp < lastUpdateRef.current) {
+        console.log("Skipping update: Old or duplicate data", {
+          newTimestamp: threeMinuteTimestamp,
+          lastUpdate: lastUpdateRef.current,
+        })
+        // return
+      }
+
+      const lastCandle = historicalData[historicalData.length - 1]
+      if(lastCandle){
+        const oldTime =  lastCandle.time
+        console.log("old and new rounded timestamps", {oldTime , threeMinuteTimestamp })
+      }
+      console.log("last candle is", {lastCandle})
+      if (!lastCandle || threeMinuteTimestamp > lastCandle.time) {
+        // Create a new candle
+        console.log("Adding new candle:")
         const newCandle: CandlestickData = {
-          time:
-            timeframe === "1m" ? minuteTimestamp : ((Math.floor(currentTime / (3 * 60)) * 3 * 60) as UTCTimestamp),
-          open: currentCandle.close,
+          time: threeMinuteTimestamp,
+          open: price,
           high: price,
           low: price,
           close: price,
         }
-        series.update(currentCandle)
-        chartDataRef.current.currentCandle = newCandle
-
-        setHistoricalData((prevData) => [...prevData, newCandle])
-        let lastThreeCandles;
-        try {
-          if (timeframe === "3m") {
-            lastThreeCandles = historicalData.slice(-3)
-
-            let startIndex = historicalData.length - 3;
-            for (let i = 0; i < lastThreeCandles.length; i++) {
-              if (isMultipleOfThreeMinutes(lastThreeCandles[i].time)) {
-                startIndex = historicalData.length - 3 + i;
-                break;
-              }
-            }
-
-            // Slice the array from the identified candle
-            let slicedCandles = historicalData.slice(startIndex);
-
-            const aggregatedCandle = aggregateToThreeMinutes([...slicedCandles, newCandle])[0]
-            series.update(aggregatedCandle)
-          } else {
-            series.update(newCandle)
-          }
+        console.log("Adding new candle:", newCandle)
+        seriesRef.current.update(newCandle)
+        setHistoricalData((prev) => [...prev, newCandle])
+      } else if (threeMinuteTimestamp === lastCandle.time) {
+        // Update the existing candle
+        console.log("updating same candle")
+        const updatedCandle: CandlestickData = {
+          time: lastCandle.time,
+          open: lastCandle.open,
+          high: Math.max(lastCandle.high, price),
+          low: Math.min(lastCandle.low, price),
+          close: price,
         }
-        catch (error){
-          console.log(`error is ${error}`)
-          console.log(`last 3 candles are ${JSON.stringify(lastThreeCandles)}`)
-          console.log(`current candle is ${JSON.stringify(currentCandle)}`)
-        }
+        console.log("Updating existing candle:", updatedCandle)
+        seriesRef.current.update(updatedCandle)
+        setHistoricalData((prev) => [...prev.slice(0, -1), updatedCandle])
       }
-      else {
-        currentCandle.high = Math.max(currentCandle.high, price)
-        currentCandle.low = Math.min(currentCandle.low, price)
-        currentCandle.close = price
-        let lastThreeCandles;
-      try {
-          if (timeframe === "3m") {
-            lastThreeCandles = historicalData.slice(-3)
-            
-            let startIndex = historicalData.length - 3;
-            for (let i = 0; i < lastThreeCandles.length; i++) {
-              if (isMultipleOfThreeMinutes(lastThreeCandles[i].time)) {
-                startIndex = historicalData.length - 3 + i;
-                break;
-              }
-            }
 
-            // Slice the array from the identified candle
-            let slicedCandles = historicalData.slice(startIndex);
-
-
-            const updatedAggregatedCandle = aggregateToThreeMinutes([...slicedCandles, currentCandle])[0]
-            series.update(updatedAggregatedCandle)
-          } else {
-            series.update(currentCandle)
-          }
-        }
-        catch (error){
-          console.log(`error is ${error}`)
-          console.log(`last 3 candles are ${JSON.stringify(lastThreeCandles)}`)
-          console.log(`current candle is ${JSON.stringify(currentCandle)}`)
-        }
-      }
+      lastUpdateRef.current = threeMinuteTimestamp
 
       const istDate = convertToIST(currentTime)
-      let timeRemainingString: string
+      const totalSeconds = 180 - ((istDate.getMinutes() % 3) * 60 + istDate.getSeconds())
+      const minutes = Math.floor(totalSeconds / 60)
+      const seconds = totalSeconds % 60
+      const timeRemainingString = `${minutes}m${seconds}s`
 
-      if (timeframe === "1m") {
-        const totalSeconds = 60 - istDate.getSeconds()
-        const minutes = Math.floor(totalSeconds / 60)
-        const seconds = totalSeconds % 60
-        timeRemainingString = minutes > 0 ? `${minutes}m${seconds}s` : `${seconds}s`
-      } else if (timeframe === "3m") {
-        const totalSeconds = 180 - ((istDate.getMinutes() % 3) * 60 + istDate.getSeconds())
-        const minutes = Math.floor(totalSeconds / 60)
-        const seconds = totalSeconds % 60
-        timeRemainingString = minutes > 0 ? `${minutes}m${seconds}s` : `${seconds}s`
-      }
-
-      series.applyOptions({
+      seriesRef.current.applyOptions({
         lastValueVisible: true,
         priceFormat: {
           type: "price",
@@ -298,9 +205,9 @@ export function RealTimeChart({
         title: timeRemainingString,
       })
 
-      chartDataRef.current.lastUpdate = Date.now()
+      console.log("Chart update complete")
     },
-    [timeframe, historicalData],
+    [historicalData],
   )
 
   useEffect(() => {
@@ -374,6 +281,7 @@ export function RealTimeChart({
   useEffect(() => {
     if (isInitialized && atmCallPrice && atmCallTt) {
       if (currentTab === "call") {
+        // console.log("Updating call data:", { atmCallSymbol, atmCallPrice, atmCallTt })
         updateChartData(atmCallSymbol, atmCallPrice, atmCallTt)
       }
     }
@@ -382,6 +290,7 @@ export function RealTimeChart({
   useEffect(() => {
     if (isInitialized && atmPutPrice && atmPutTt) {
       if (currentTab === "put") {
+        // console.log("Updating put data:", { atmPutSymbol, atmPutPrice, atmPutTt })
         updateChartData(atmPutSymbol, atmPutPrice, atmPutTt)
       }
     }
@@ -401,25 +310,10 @@ export function RealTimeChart({
     return () => window.removeEventListener("resize", handleResize)
   }, [])
 
-  const handleTimeframeChange = (newTimeframe: "1m" | "3m") => {
-    setTimeframe(newTimeframe)
-    const symbol = currentTab === "call" ? atmCallSymbol : atmPutSymbol
-    fetchDataAndCreateSeries(symbol)
-  }
-
   return (
     <Card className="w-1000 h-full border-none shadow-none">
       <CardHeader className="p-4 border-none">
-        <CardTitle className="flex justify-between items-center">
-          <div className="space-x-2">
-            <Button variant={timeframe === "1m" ? "default" : "outline"} onClick={() => handleTimeframeChange("1m")}>
-              1m
-            </Button>
-            <Button variant={timeframe === "3m" ? "default" : "outline"} onClick={() => handleTimeframeChange("3m")}>
-              3m
-            </Button>
-          </div>
-        </CardTitle>
+        <CardTitle className="flex justify-between items-center"></CardTitle>
       </CardHeader>
       <CardContent className="p-0 h-[calc(90%-5rem)]">
         <div ref={chartContainerRef} className="w-full h-full">

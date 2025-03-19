@@ -10,6 +10,7 @@ export const fetchQuote = async (
   try {
     console.log("fetching quote");
     const response = await axios.get(`${API_BASE_URL}/api/quote`)
+    console.log(response.data);
     setQuote(response.data.quote)
     console.log(response.data.quote);
   } catch (error) {

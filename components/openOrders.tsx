@@ -14,7 +14,7 @@ type OpenOrder = {
   prc: string
   qty: string
   currentTradingPrice: string
-  prctyp: 'LMT' | 'SL-LMT'
+  prctyp: 'LIMIT' | 'STOP_LOSS'
   norenordno: string
 }
 

@@ -41,7 +41,7 @@ type OpenOrder = {
   price: number
   quantity: number
   currentTradingPrice: number
-  status: 'Limit' | 'SL-LMT'
+  status: 'Limit' | 'STOP_LOSS'
 }
 
 type CandlestickData = {
@@ -150,7 +150,7 @@ export default function Home() {
     setAtmPut({ price: 4.75, symbol: 'AAPL230721P00150000', latestPrice: 4.70 })
     setOpenOrders([
       { id: '1', symbol: 'NIFTY 23500 CE', price: 3.50, quantity: 10, currentTradingPrice: 3.55, status: 'Limit' },
-      { id: '2', symbol: 'NIFTY 23500 PE', price: 15.00, quantity: 5, currentTradingPrice: 14.80, status: 'SL-LMT' },
+      { id: '2', symbol: 'NIFTY 23500 PE', price: 15.00, quantity: 5, currentTradingPrice: 14.80, status: 'STOP_LOSS' },
     ])
   }, [])
 

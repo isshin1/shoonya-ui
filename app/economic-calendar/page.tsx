@@ -21,7 +21,7 @@ const EconomicCalendar: React.FC = () => {
       <SidebarInset className="flex flex-col p-4">
         <Card>
           <CardHeader>
-            <CardTitle>Economic Calendar</CardTitle>
+            <CardTitle>Economic Calendar</CardTitle>z
           </CardHeader>
           <CardContent>
             <iframe

@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction } from 'react'
+import type { Dispatch, SetStateAction } from "react"
 
 type AtmData = {
   price: number
@@ -10,14 +10,14 @@ type AtmData = {
 type Position = {
   id: string
   tsym: string
-  type: 'call' | 'put'
+  type: "call" | "put"
   daybuyavgprc: string
   totsellavgprc: string
   currentPrice: string
   exitPrice: string
   daybuyqty: string
   netqty: string
-  status: 'active' | 'closed'
+  status: "active" | "closed"
 }
 
 type UpdateDataProps = {
@@ -26,59 +26,96 @@ type UpdateDataProps = {
   setOpenOrders: Dispatch<SetStateAction<any[]>>
   setPositions: Dispatch<SetStateAction<Position[]>>
   setTimerLeft: Dispatch<SetStateAction<string | null>>
+  setT1Progress?: Dispatch<SetStateAction<number>>
+  setT2Progress?: Dispatch<SetStateAction<number>>
+  setT3Progress?: Dispatch<SetStateAction<number>>
 }
 
-export function updateData(message: any, { setAtmCall, setAtmPut, setOpenOrders, setPositions, setTimerLeft }: UpdateDataProps) {
-  if (message.type === 'atm') {
-    console.log(message);
-    setAtmCall(prevState => ({
+export function updateData(
+  message: any,
+  {
+    setAtmCall,
+    setAtmPut,
+    setOpenOrders,
+    setPositions,
+    setTimerLeft,
+    setT1Progress,
+    setT2Progress,
+    setT3Progress,
+  }: UpdateDataProps,
+) {
+  if (message.type === "atm") {
+    console.log(`Received ATM update: call token=${message.ceToken}, put token=${message.peToken}`)
+
+    setAtmCall((prevState) => ({
       ...prevState,
       symbol: message.ceTsym,
       token: message.ceToken,
-    }));
-    
-    setAtmPut(prevState => ({
+    }))
+
+    setAtmPut((prevState) => ({
       ...prevState,
       symbol: message.peTsym,
       token: message.peToken,
-    }));
+    }))
 
-    console.log("Changed latest symbols");
+    console.log("Updated ATM symbols and tokens")
   }
 
   if (message.token && message.price && message.tt) {
-    setAtmCall(prevState => {
-      if (message.token === prevState.token) {
-        return { ...prevState, price: message.price, tt: message.tt };
+    // Convert tokens to strings for comparison to avoid type mismatches
+    const messageToken = String(message.token)
+
+    setAtmCall((prevState) => {
+      const prevToken = String(prevState.token)
+
+      if (messageToken === prevToken) {
+        return { ...prevState, price: Number(message.price), tt: message.tt }
       }
-      return prevState;
-    });
-    
-    setAtmPut(prevState => {
-      if (message.token === prevState.token) {
-        return { ...prevState, price: message.price, tt: message.tt };
+      return prevState
+    })
+
+    setAtmPut((prevState) => {
+      const prevToken = String(prevState.token)
+
+      if (messageToken === prevToken) {
+        return { ...prevState, price: Number(message.price), tt: message.tt }
       }
-      return prevState;
-    });
+      return prevState
+    })
   }
 
-  if (message.type === 'order') {
-    const orders = message.orders;
-    setOpenOrders(orders || []); // Set to an empty array if orders is null or undefined
-    console.log("Updated orders:", orders);
+  if (message.type === "order") {
+    const orders = message.orders
+    setOpenOrders(orders || []) // Set to an empty array if orders is null or undefined
+    console.log("Updated orders:", orders)
   }
 
-  if (message.type === 'position') {
-    const positions = message.positions;
+  if (message.type === "position") {
+    const positions = message.positions
     if (positions == null || positions.length === 0) {
-      console.log("No positions");
+      console.log("No positions")
     } else {
-      setPositions(positions);
+      setPositions(positions)
     }
   }
 
-  if (message.type === 'timer') {
-    setTimerLeft(message.left);
+  if (message.type === "timer") {
+    setTimerLeft(message.left)
+  }
+
+  // Handle target progress messages
+  if (message.type === "target") {
+    const { target, points } = message
+    console.log(`Received target update: ${target} with ${points} points`)
+
+    if (target === "t1" && setT1Progress) {
+      setT1Progress(points)
+    } else if (target === "t2" && setT2Progress) {
+      setT2Progress(points)
+    } else if (target === "t3" && setT3Progress) {
+      setT3Progress(points)
+    }
   }
 }
 

@@ -32,11 +32,11 @@ export const fetchOpenOrdersCallback = async (setOpenOrders: React.Dispatch<Reac
     setOpenOrders(orders);
   } catch (error) {
     console.error('Error fetching open orders:', error);
-    toast({
-      title: "Error",
-      description: "Failed to fetch open orders. Please try again.",
-      variant: "destructive",
-    });
+    // toast({
+    //   title: "Error",
+    //   description: "Failed to fetch open orders. Please try again.",
+    //   variant: "destructive",
+    // });
   } finally {
     setIsLoading(prev => ({ ...prev, openOrders: false }));
   }

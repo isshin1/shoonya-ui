@@ -23,9 +23,12 @@ export function initializeWebSocket(callback: (message: any) => void) {
       },
     });
   };
-  
+
+  const singleQuoteRegex = /'/g;
+
   socket.onmessage = (event) => {
-    const message = JSON.parse(event.data);
+    // console.log(event.data)
+    const message = JSON.parse(event.data.replace(singleQuoteRegex, '"'));
     if (typeof callback === 'function') {
       callback(message);
     }
@@ -47,7 +50,7 @@ export function initializeWebSocket(callback: (message: any) => void) {
   };
 
   socket.onerror = (error) => {
-    console.error('WebSocket error:', error);
+    console.log('WebSocket error:', error);
     socket = null;
     setTimeout(() => initializeWebSocket(callback), 1000);
   };

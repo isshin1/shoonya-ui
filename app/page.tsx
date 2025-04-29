@@ -383,11 +383,17 @@ export default function Home() {
                         <TabsContent value="call" className="flex-grow">
                           <div className="space-y-4">
                             <Tabs
-                              defaultValue="LIMIT"
+                              defaultValue="SL"
                               className="w-full"
                               onValueChange={(value) => setOrderType(value as OrderType)}
                             >
                               <TabsList className="grid w-full grid-cols-3 bg-transparent border-none">
+                              <TabsTrigger
+                                  value="SL"
+                                  className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
+                                >
+                                  SL
+                                </TabsTrigger>
                                 <TabsTrigger
                                   value="LIMIT"
                                   className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
@@ -400,12 +406,7 @@ export default function Home() {
                                 >
                                   Stop Limit
                                 </TabsTrigger>
-                                <TabsTrigger
-                                  value="SL"
-                                  className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
-                                >
-                                  SL
-                                </TabsTrigger>
+
                               </TabsList>
                               <TabsContent value="LIMIT" className="space-y-4 pt-4">
                                 <div>
@@ -530,11 +531,17 @@ export default function Home() {
                         <TabsContent value="put" className="flex-grow">
                           <div className="space-y-4">
                             <Tabs
-                              defaultValue="LIMIT"
+                              defaultValue="SL"
                               className="w-full"
                               onValueChange={(value) => setOrderType(value as OrderType)}
                             >
                               <TabsList className="grid w-full grid-cols-3 bg-transparent border-none">
+                              <TabsTrigger
+                                  value="SL"
+                                  className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
+                                >
+                                  SL
+                                </TabsTrigger>
                                 <TabsTrigger
                                   value="LIMIT"
                                   className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
@@ -546,12 +553,6 @@ export default function Home() {
                                   className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
                                 >
                                   Stop Limit
-                                </TabsTrigger>
-                                <TabsTrigger
-                                  value="SL"
-                                  className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
-                                >
-                                  SL
                                 </TabsTrigger>
                               </TabsList>
                               <TabsContent value="LIMIT" className="space-y-4 pt-4">
@@ -807,19 +808,10 @@ export default function Home() {
                         <Button
                           className="px-4 py-1 "
                           onClick={async () => {
-                            try {
                               const result = await updateTargets(t1, t2, t3)
                               toast({
                                 title: "Targets Updated",
-                                description: result.message,
                               })
-                            } catch (error) {
-                              toast({
-                                title: "Error",
-                                description: "Failed to update targets. Please try again.",
-                                variant: "destructive",
-                              })
-                            }
                           }}
                         >
                           Update Targets

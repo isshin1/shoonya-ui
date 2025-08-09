@@ -1,8 +1,9 @@
 import axios from 'axios';
+import { API_BASE_URL } from '@/utils/env';
 
 export async function fetchMargin(): Promise<number> {
   try {
-    const response = await axios.get('http://localhost:8000/api/margin');
+    const response = await axios.get(`${API_BASE_URL}/api/margin`);
     console.log(`margin available is ${response}`)
     return response.data;
   } catch (error) {

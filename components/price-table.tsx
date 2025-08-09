@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useToast } from "@/components/ui/use-toast"
 import { API_BASE_URL } from "@/utils/env"
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu"
-import { DotsVerticalIcon } from "@radix-ui/react-icons"
+import { DotsVerticalIcon, ReloadIcon } from "@radix-ui/react-icons"
 import { Tile, TileHeader, TileTitle, TileContent } from "@/components/ui/tile"
 import { cn } from "@/lib/utils"
 
@@ -30,34 +30,19 @@ export function PriceTable() {
     try {
       setIsLoading(true)
       setError(null)
-      console.log("Fetching from:", `${API_BASE_URL}/api/getDps`)
       const response = await fetch(`${API_BASE_URL}/api/getDps`)
-      console.log("Response status:", response.status)
-
       if (!response.ok) {
         throw new Error(`Failed to fetch price data: ${response.status}`)
       }
-
       const text = await response.text()
-      console.log("Raw response:", text)
-
-      // Check if the response is a valid JSON string
       try {
-        // Try to parse as JSON
         const data = JSON.parse(text)
-        console.log("Parsed data:", data)
-
         if (Array.isArray(data)) {
-          console.log("Setting table data with array of length:", data.length)
           setTableData(data)
         } else if (data && typeof data === "object") {
-          // If it's an object with a data property that's an array
           if (Array.isArray(data.data)) {
-            console.log("Using data.data array instead")
             setTableData(data.data)
           } else {
-            // If we have data but it's not in the expected format, try to display it anyway
-            console.log("Converting object to array")
             setTableData([data])
           }
         } else {
@@ -65,45 +50,30 @@ export function PriceTable() {
           setTableData([])
         }
       } catch (parseError) {
-        console.error("JSON parse error:", parseError)
-
-        // If it's not valid JSON, check if it's a string representation of an array
         if (text.trim().startsWith("[") && text.trim().endsWith("]")) {
-          // It looks like an array string, but JSON.parse failed
-          setError(`Invalid JSON array: ${parseError.message}`)
+          setError(`Invalid JSON array: ${(parseError as Error).message}`)
         } else {
-          // It's just a plain string, try to display it as a message
           setError(`API returned a string: ${text}`)
-
-          // Try to manually parse the string if it looks like it might contain data
           if (text.includes("{") && text.includes("}")) {
             try {
-              // Extract objects from the string
               const extractedObjects = text.match(/\{[^{}]*\}/g)
               if (extractedObjects && extractedObjects.length > 0) {
-                const parsedObjects = extractedObjects
-                  .map((obj) => {
-                    try {
-                      return JSON.parse(obj)
-                    } catch (e) {
-                      return null
-                    }
-                  })
-                  .filter(Boolean)
-
+                const parsedObjects = extractedObjects.map(obj => {
+                  try {
+                    return JSON.parse(obj)
+                  } catch (e) {
+                    return null
+                  }
+                }).filter(Boolean)
                 if (parsedObjects.length > 0) {
-                  console.log("Extracted objects from string:", parsedObjects)
                   setTableData(parsedObjects)
                 }
               }
-            } catch (e) {
-              console.error("Failed to extract objects from string:", e)
-            }
+            } catch (e) {}
           }
         }
       }
-    } catch (error) {
-      console.error("Error fetching price data:", error)
+    } catch (error: any) {
       setError(`Failed to fetch price data: ${error.message}`)
       toast({
         title: "Error",
@@ -130,28 +100,14 @@ export function PriceTable() {
     try {
       const response = await fetch(`${API_BASE_URL}/api/addDp/${price}/${name}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
       })
-
-      if (!response.ok) {
-        throw new Error("Failed to update price")
-      }
-
-      toast({
-        title: "Success",
-        description: "Price updated successfully.",
-      })
-
-      // Clear input fields
+      if (!response.ok) throw new Error("Failed to update price")
+      toast({ title: "Success", description: "Price updated successfully." })
       setName("")
       setPrice("")
-
-      // Refresh data
       fetchPriceData()
     } catch (error) {
-      console.error("Error updating price:", error)
       toast({
         title: "Error",
         description: "Failed to update price. Please try again.",
@@ -168,20 +124,10 @@ export function PriceTable() {
       const response = await fetch(`${API_BASE_URL}/api/deleteDp/${name}/${price}`, {
         method: "DELETE",
       })
-
-      if (!response.ok) {
-        throw new Error("Failed to delete price point")
-      }
-
-      toast({
-        title: "Success",
-        description: "Price point deleted successfully.",
-      })
-
-      // Refresh data
+      if (!response.ok) throw new Error("Failed to delete price point")
+      toast({ title: "Success", description: "Price point deleted successfully." })
       fetchPriceData()
     } catch (error) {
-      console.error("Error deleting price point:", error)
       toast({
         title: "Error",
         description: "Failed to delete price point. Please try again.",
@@ -194,10 +140,7 @@ export function PriceTable() {
 
   const handleEditDp = (index: number) => {
     const item = tableData[index]
-    setEditingRow({
-      index,
-      newPrice: item.price.toString(),
-    })
+    setEditingRow({ index, newPrice: item.price.toString() })
   }
 
   const handleUpdateDp = async (name: string, oldPrice: string | number, newPrice: string) => {
@@ -209,29 +152,16 @@ export function PriceTable() {
       })
       return
     }
-
     setIsLoading(true)
     try {
       const response = await fetch(`${API_BASE_URL}/api/updateDp/${oldPrice}/${newPrice}`, {
         method: "PUT",
       })
-
-      if (!response.ok) {
-        throw new Error("Failed to update price point")
-      }
-
-      toast({
-        title: "Success",
-        description: "Price point updated successfully.",
-      })
-
-      // Reset editing state
+      if (!response.ok) throw new Error("Failed to update price point")
+      toast({ title: "Success", description: "Price point updated successfully." })
       setEditingRow(null)
-
-      // Refresh data
       fetchPriceData()
     } catch (error) {
-      console.error("Error updating price point:", error)
       toast({
         title: "Error",
         description: "Failed to update price point. Please try again.",
@@ -243,9 +173,7 @@ export function PriceTable() {
   }
 
   useEffect(() => {
-    // Check if API_BASE_URL is defined
     if (!API_BASE_URL) {
-      console.error("API_BASE_URL is not defined")
       setError("API base URL is not configured properly")
       toast({
         title: "Configuration Error",
@@ -254,35 +182,34 @@ export function PriceTable() {
       })
       return
     }
-
-    // Fetch data initially
     fetchPriceData()
-
-    // Set up interval to fetch data every minute
     const intervalId = setInterval(fetchPriceData, 60 * 1000)
-
-    // Clean up interval on component unmount
     return () => clearInterval(intervalId)
   }, [])
 
-  // Helper function to format values for display
   const formatValue = (value: any): string => {
-    if (typeof value === "number") {
-      return value.toFixed(2)
-    } else if (typeof value === "boolean") {
-      return value ? "Yes" : "No"
-    } else if (value === null || value === undefined) {
-      return "N/A"
-    }
+    if (typeof value === "number") return value.toFixed(2)
+    if (typeof value === "boolean") return value ? "Yes" : "No"
+    if (value === null || value === undefined) return "N/A"
     return String(value)
   }
 
   return (
-    <Tile>
-      <TileHeader>
-        <TileTitle>Price Points</TileTitle>
-      </TileHeader>
-      <TileContent>
+    <Tile className="border-2 border-indigo-400 rounded-lg ">
+      <div className="bg-[#2E2867]  py-0 rounded-t-lg -m-[2px]">
+        <TileHeader className="flex items-center justify-between py-2">
+          <TileTitle className="text-white text-sm ">Price Points</TileTitle>
+          <button
+            onClick={fetchPriceData}
+            disabled={isLoading}
+            aria-label="Refresh"
+            className="ml-auto inline-flex items-center px-2 py-2 border border-gray-300 text-sm font-medium rounded-full shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+          >
+            <ReloadIcon className={isLoading ? "animate-spin h-5 w-5" : "h-5 w-5"} />
+          </button>
+        </TileHeader>
+      </div>
+      <TileContent >
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
             <p className="font-bold">Error:</p>
@@ -294,34 +221,19 @@ export function PriceTable() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Name
                 </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Price
                 </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Call
                 </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Put
                 </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -338,8 +250,8 @@ export function PriceTable() {
                         <input
                           type="text"
                           value={editingRow.newPrice}
-                          onChange={(e) => setEditingRow({ ...editingRow, newPrice: e.target.value })}
-                          onKeyDown={(e) => {
+                          onChange={e => setEditingRow({ ...editingRow, newPrice: e.target.value })}
+                          onKeyDown={e => {
                             if (e.key === "Enter") {
                               handleUpdateDp(item.name, item.price, editingRow.newPrice)
                             } else if (e.key === "Escape") {
@@ -347,26 +259,22 @@ export function PriceTable() {
                             }
                           }}
                           autoFocus
-                          className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                          className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md  px-4 py-2 h-10"
                         />
                       ) : (
                         formatValue(item.price)
                       )}
                     </td>
-                    <td
-                      className={cn(
-                        "px-6 py-4 whitespace-nowrap text-sm",
-                        item.call ? "text-green-600 font-bold" : "text-red-600",
-                      )}
-                    >
+                    <td className={cn(
+                      "px-6 py-4 whitespace-nowrap text-sm",
+                      item.call ? "text-green-600 font-bold" : "text-red-600"
+                    )}>
                       {formatValue(item.call)}
                     </td>
-                    <td
-                      className={cn(
-                        "px-6 py-4 whitespace-nowrap text-sm",
-                        item.put ? "text-green-600 font-bold" : "text-red-600",
-                      )}
-                    >
+                    <td className={cn(
+                      "px-6 py-4 whitespace-nowrap text-sm",
+                      item.put ? "text-green-600 font-bold" : "text-red-600"
+                    )}>
                       {formatValue(item.put)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -416,47 +324,41 @@ export function PriceTable() {
           </table>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Inputs grid, no refresh button here */}
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-3">
           <div>
-            <label htmlFor="name-input" className="block text-sm font-medium text-gray-700">
+            {/* <label htmlFor="name-input" className="block text-sm font-medium text-gray-700">
               Name
-            </label>
+            </label> */}
             <input
               type="text"
               id="name-input"
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              placeholder="Enter Name"
+              onChange={e => setName(e.target.value)}
+              className="mt-1 block w-full rounded-md border border-black-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 h-10"
             />
           </div>
           <div>
-            <label htmlFor="price-input" className="block text-sm font-medium text-gray-700">
+            {/* <label htmlFor="price-input" className="block text-sm font-medium text-gray-700">
               Price
-            </label>
+            </label> */}
             <input
               type="text"
               id="price-input"
               value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              placeholder="Enter Price"
+              onChange={e => setPrice(e.target.value)}
+              className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 h-10"
             />
           </div>
-          <div className="flex items-end">
+          <div>
             <button
               onClick={handleUpdate}
               disabled={isLoading}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
             >
-              {isLoading ? "Updating..." : "Update"}
-            </button>
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={fetchPriceData}
-              disabled={isLoading}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-            >
-              Refresh
+              {isLoading ? "Updating..." : "Add DP"}
             </button>
           </div>
         </div>

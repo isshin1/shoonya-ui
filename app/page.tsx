@@ -33,6 +33,9 @@ import { fetchQuote } from "./api/fetchQuote"
 import { closeWebSocket, initializeWebSocket } from "./websocket/websocket"
 import { cancelOrder, fetchOpenOrdersCallback } from "./api/orders"
 import { endSession, addMoney } from "./api/session"
+import { refreshTrade } from "./api/refreshTrade"
+import { RefreshCw } from "lucide-react"
+
 import { updateData } from "./websocket/updateComponents"
 import { useState } from "react"
 import { updateTargets } from "./api/targets"
@@ -105,7 +108,9 @@ export default function Home() {
   const [isEndSessionOpen, setIsEndSessionOpen] = useState(false)
   const [amount, setAmount] = useState("")
   const [callPrice, setCallPrice] = useState("")
+  const [lastCallPrice, setLastCallPrice] = useState("");
   const [putPrice, setPutPrice] = useState("")
+  const [lastPutPrice, setLastPutPrice] = useState("");
   const [currentTab, setCurrentTab] = useState<"call" | "put">("call")
   const [quote, setQuote] = useState("")
   const [isLoading, setIsLoading] = useState({
@@ -114,6 +119,7 @@ export default function Home() {
     quote: false,
     buyOrder: false,
     modifyOrder: false,
+    refreshTrade: false,
   })
   const [orderType, setOrderType] = useState<OrderType>("LIMIT")
   // const [planInputs, setPlanInputs] = useState<PlanInputs>({
@@ -130,11 +136,12 @@ export default function Home() {
   const [isModifyOrderOpen, setIsModifyOrderOpen] = useState(false) // Added state for Modify Order dialog
   const [timerLeft, setTimerLeft] = useState<string | null>(null)
   const [t1, setT1] = useState("20")
-  const [t2, setT2] = useState("20")
-  const [t3, setT3] = useState("20")
+  const [t2, setT2] = useState("0")
+  // const [t3, setT3] = useState("20")
   const [bofEnabled, setBofEnabled] = useState(false)
   const [callBofEnabled, setCallBofEnabled] = useState(false)
   const [putBofEnabled, setPutBofEnabled] = useState(false)
+  const [tradeMode, setTradeMode] = useState<"no-trade" | "call" | "put">("no-trade")
 
   const [margin, setMargin] = useState<number | null>(null)
 
@@ -185,6 +192,28 @@ export default function Home() {
   const fetchQuoteCallback = useCallback(() => {
     fetchQuote(setIsLoading, setQuote)
   }, [])
+
+  const handleRefreshTrade = () => {
+    setIsLoading((prev) => ({ ...prev, refreshTrade: true }))
+
+    // Show success message immediately
+    toast({
+      title: "Success",
+      description: "Trade refresh initiated",
+      variant: "success",
+    })
+
+    // Make API call without awaiting the response
+    refreshTrade().catch((error) => {
+      console.error("Error in background refresh:", error)
+      // We don't show errors to the user since we've already shown success
+    })
+
+    // Stop the spinner after 1 second for visual feedback
+    setTimeout(() => {
+      setIsLoading((prev) => ({ ...prev, refreshTrade: false }))
+    }, 1000)
+  }
 
   const modifyOrder = async () => {
     if (!selectedOrder) return
@@ -300,17 +329,69 @@ export default function Home() {
     setter((prev) => Math.max(0, Number.parseInt(prev) - 10).toString())
   }
 
+
+  const handleCallPriceFocus = () => {
+    setCallPrice(atmCall.price.toFixed(1));
+  };
+
+  const handleCallPriceBlur = () => {
+    setTimeout(() => {
+      setCallPrice("");
+    }, 500); // 1000 milliseconds = 1 second
+
+  };
+
+  const handlePutPriceFocus = () => {
+    setPutPrice(atmPut.price.toFixed(1));
+  };
+
+  const handlePutPriceBlur = () => {
+    setTimeout(() => {
+      setPutPrice("");
+    }, 500); // 1000 milliseconds = 1 second
+  };
+
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       <SidebarProvider defaultOpen={false}>
         <AppSidebar />
         <SidebarInset className="flex flex-col w-full">
           <header className="flex items-center h-10 border-b">
-            <div className="flex-grow">
+            <div className="flex-grow flex items-center">
               <div className="text-left cursor-pointer pl-2" onClick={fetchQuoteCallback}>
                 <p className="text-xs italic inline-block hover:bg-gray-100 rounded transition-colors px-1">
                   {isLoading.quote ? "Fetching quote..." : quote || "No quote available"}
                 </p>
+              </div>
+              <div className="ml-4">
+                <div className="bg-gray-100 p-0.5 rounded-md flex h-8">
+                  <button
+                    className={`px-3 rounded-md text-xs font-medium transition-colors ${
+                      tradeMode === "no-trade"
+                        ? "bg-gray-900 text-white shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                    onClick={() => setTradeMode("no-trade")}
+                  >
+                    No Trade
+                  </button>
+                  <button
+                    className={`px-3 rounded-md text-xs font-medium transition-colors ${
+                      tradeMode === "call" ? "bg-green-600 text-white shadow-sm" : "text-gray-600 hover:text-gray-900"
+                    }`}
+                    onClick={() => setTradeMode("call")}
+                  >
+                    Call
+                  </button>
+                  <button
+                    className={`px-3 rounded-md text-xs font-medium transition-colors ${
+                      tradeMode === "put" ? "bg-red-600 text-white shadow-sm" : "text-gray-600 hover:text-gray-900"
+                    }`}
+                    onClick={() => setTradeMode("put")}
+                  >
+                    Put
+                  </button>
+                </div>
               </div>
             </div>
             <div className="flex-shrink-0 mx-4">
@@ -321,6 +402,16 @@ export default function Home() {
               )}
             </div>
             <div className="flex-shrink-0 flex space-x-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={handleRefreshTrade}
+                disabled={isLoading.refreshTrade}
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoading.refreshTrade ? "animate-spin" : ""}`} />
+                <span className="sr-only">Refresh Trade</span>
+              </Button>
               <EconomicCalendarPopup />
               <TradePlanPopup />
               {/* <Dialog open={isAddMoneyOpen} onOpenChange={setIsAddMoneyOpen}>
@@ -361,10 +452,10 @@ export default function Home() {
               </AlertDialog>
             </div>
           </header>
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full overflow-y-auto">
-              <Card className="h-full w-[700px] max-w-full mx-auto p-0">
-                <CardContent className="space-y-4 h-full p-0">
+          <div className="flex-1 overflow-hidden border-0">
+            <div className="h-full overflow-y-auto border-0">
+              <Card className="h-full w-[700px] max-w-full mx-auto p-0 border-0">
+                <CardContent className="space-y-4 h-full p-0 border-0">
                   <Card>
                     <CardContent className="p-4 text-sm">
                       <Tabs
@@ -377,54 +468,44 @@ export default function Home() {
                             {currentTab === "call" ? convertString(atmCall.symbol) : convertString(atmCall.symbol)}
                           </TabsTrigger>
                           <TabsTrigger value="put">
-                            {currentTab === "put " ? convertString(atmPut.symbol) : convertString(atmPut.symbol)}
+                            {currentTab === "put" ? convertString(atmPut.symbol) : convertString(atmPut.symbol)}
                           </TabsTrigger>
                         </TabsList>
                         <TabsContent value="call" className="flex-grow">
                           <div className="space-y-4">
                             <Tabs
-                              defaultValue="SL"
+                              defaultValue="LIMIT"
                               className="w-full"
                               onValueChange={(value) => setOrderType(value as OrderType)}
                             >
-                              <TabsList className="grid w-full grid-cols-3 bg-transparent border-none">
-                              <TabsTrigger
-                                  value="SL"
-                                  className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
-                                >
-                                  SL
-                                </TabsTrigger>
-                                <TabsTrigger
-                                  value="LIMIT"
-                                  className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
-                                >
-                                  Limit
-                                </TabsTrigger>
-                                <TabsTrigger
-                                  value="STOP_LOSS"
-                                  className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
-                                >
-                                  Stop Limit
-                                </TabsTrigger>
+                              <div className="text-sm text-gray-500 mb-2">
+                                Latest price: ₹{atmCall.price.toFixed(2)}
+                              </div>
 
-                              </TabsList>
-                              <TabsContent value="LIMIT" className="space-y-4 pt-4">
+                              <TabsContent value="LIMIT" className="space-y-4">
                                 <div>
-                                  <label
-                                    htmlFor="callPrice"
-                                    className="block text-sm font-medium text-gray-700"
-                                  ></label>
                                   <div className="flex items-center space-x-2">
                                     <Input
                                       id="callPrice"
                                       type="number"
                                       value={callPrice}
                                       onChange={(e) => setCallPrice(e.target.value ?? 0.0)}
+                                      // onChange={handleCallPriceChange}
                                       placeholder="Enter limit price"
-                                      className="flex-grow"
+                                      className="w-50"
+                                      onFocus={handleCallPriceFocus}
+                                      onBlur={handleCallPriceBlur}
                                     />
                                     <div className="flex items-center space-x-2">
-                                      <Checkbox
+ 
+                                      <Button
+                                        onClick={() => handleBuyOption("call", orderType, callPrice, atmCall.symbol)}
+                                        className="w-30"
+                                        disabled={isLoading.buyOrder || tradeMode === "no-trade" || tradeMode === "put"}
+                                      >
+                                        {isLoading.buyOrder ? "Buying..." : "Buy Call"}
+                                      </Button>
+                                     <Checkbox
                                         id="callBof"
                                         checked={callBofEnabled}
                                         onCheckedChange={setCallBofEnabled}
@@ -438,20 +519,11 @@ export default function Home() {
                                     </div>
                                   </div>
                                 </div>
-                                <Button
-                                  onClick={() => handleBuyOption("call", orderType, callPrice, atmCall.symbol)}
-                                  className="w-full"
-                                  disabled={isLoading.buyOrder}
-                                >
-                                  {isLoading.buyOrder ? "Buying..." : "Buy Call"}
-                                </Button>
+
                               </TabsContent>
-                              <TabsContent value="STOP_LOSS" className="space-y-4 pt-4">
+
+                              <TabsContent value="STOP_LOSS" className="space-y-4">
                                 <div>
-                                  <label
-                                    htmlFor="callStopPrice"
-                                    className="block text-sm font-medium text-gray-700"
-                                  ></label>
                                   <div className="flex items-center space-x-2">
                                     <Input
                                       id="callStopPrice"
@@ -459,8 +531,17 @@ export default function Home() {
                                       value={callPrice}
                                       onChange={(e) => setCallPrice(e.target.value ?? 0.0)}
                                       placeholder="Enter stop limit price"
-                                      className="flex-grow"
+                                      className="w-50"
+                                      onFocus={handleCallPriceFocus}
+                                      onBlur={handleCallPriceBlur}
                                     />
+                                    <Button
+                                      onClick={() => handleBuyOption("call", orderType, callPrice, atmCall.symbol)}
+                                      className="w-30"
+                                      disabled={isLoading.buyOrder || tradeMode === "no-trade" || tradeMode === "put"}
+                                    >
+                                      {isLoading.buyOrder ? "Buying..." : "Buy Call"}
+                                    </Button>
                                     <div className="flex items-center space-x-2">
                                       <Checkbox
                                         id="callStopBof"
@@ -476,20 +557,10 @@ export default function Home() {
                                     </div>
                                   </div>
                                 </div>
-                                <Button
-                                  onClick={() => handleBuyOption("call", orderType, callPrice, atmCall.symbol)}
-                                  className="w-full"
-                                  disabled={isLoading.buyOrder}
-                                >
-                                  {isLoading.buyOrder ? "Buying..." : "Buy Call"}
-                                </Button>
                               </TabsContent>
-                              <TabsContent value="SL" className="space-y-4 pt-4">
+
+                              <TabsContent value="SL" className="space-y-4">
                                 <div>
-                                  <label
-                                    htmlFor="callMarketPrice"
-                                    className="block text-sm font-medium text-gray-700"
-                                  ></label>
                                   <div className="flex items-center space-x-2">
                                     <Input
                                       id="callMarketPrice"
@@ -497,8 +568,17 @@ export default function Home() {
                                       value={callPrice}
                                       onChange={(e) => setCallPrice(e.target.value ?? 0.0)}
                                       placeholder="Enter SL price"
-                                      className="flex-grow"
+                                      className="w-50"
+                                      onFocus={handleCallPriceFocus}
+                                      onBlur={handleCallPriceBlur}
                                     />
+                                    <Button
+                                      onClick={() => handleBuyOption("call", orderType, callPrice, atmCall.symbol)}
+                                      className="w-30"
+                                      disabled={isLoading.buyOrder || tradeMode === "no-trade" || tradeMode === "put"}
+                                    >
+                                      {isLoading.buyOrder ? "Buying..." : "Buy Call"}
+                                    </Button>
                                     <div className="flex items-center space-x-2">
                                       <Checkbox
                                         id="callSlBof"
@@ -514,48 +594,42 @@ export default function Home() {
                                     </div>
                                   </div>
                                 </div>
-                                <Button
-                                  onClick={() =>
-                                    handleBuyOption("call", orderType, callPrice, atmCall.symbol, bofEnabled)
-                                  }
-                                  className="w-full"
-                                  disabled={isLoading.buyOrder}
-                                >
-                                  {isLoading.buyOrder ? "Buying..." : "Buy Call"}
-                                </Button>
+ 
                               </TabsContent>
-                            </Tabs>
-                            <div className="text-sm text-gray-500">Latest price: ₹{atmCall.price.toFixed(2)}</div>
-                          </div>
-                        </TabsContent>
-                        <TabsContent value="put" className="flex-grow">
-                          <div className="space-y-4">
-                            <Tabs
-                              defaultValue="SL"
-                              className="w-full"
-                              onValueChange={(value) => setOrderType(value as OrderType)}
-                            >
-                              <TabsList className="grid w-full grid-cols-3 bg-transparent border-none">
-                              <TabsTrigger
+
+                              <TabsList className="grid w-full grid-cols-3 mt-4">
+                                <TabsTrigger
                                   value="SL"
-                                  className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
+                                  className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700 data-[state=active]:font-medium"
                                 >
                                   SL
                                 </TabsTrigger>
                                 <TabsTrigger
                                   value="LIMIT"
-                                  className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
+                                  className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700 data-[state=active]:font-medium"
                                 >
                                   Limit
                                 </TabsTrigger>
                                 <TabsTrigger
                                   value="STOP_LOSS"
-                                  className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none border-none"
+                                  className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700 data-[state=active]:font-medium"
                                 >
                                   Stop Limit
                                 </TabsTrigger>
                               </TabsList>
-                              <TabsContent value="LIMIT" className="space-y-4 pt-4">
+                            </Tabs>
+                          </div>
+                        </TabsContent>
+                        <TabsContent value="put" className="flex-grow">
+                          <div className="space-y-4">
+                            <Tabs
+                              defaultValue="LIMIT"
+                              className="w-full"
+                              onValueChange={(value) => setOrderType(value as OrderType)}
+                            >
+                              <div className="text-sm text-gray-500 mb-2">Latest price: ₹{atmPut.price.toFixed(2)}</div>
+
+                              <TabsContent value="LIMIT" className="space-y-4">
                                 <div>
                                   <div className="flex items-center space-x-2">
                                     <Input
@@ -564,8 +638,17 @@ export default function Home() {
                                       value={putPrice}
                                       onChange={(e) => setPutPrice(e.target.value)}
                                       placeholder="Enter limit price"
-                                      className="flex-grow"
+                                      className="w-50"
+                                      onFocus={handlePutPriceFocus}
+                                      onBlur={handlePutPriceBlur}
                                     />
+                                    <Button
+                                      onClick={() => handleBuyOption("put", "LIMIT", putPrice, atmPut.symbol)}
+                                      className="w-30"
+                                      disabled={isLoading.buyOrder || tradeMode === "no-trade" || tradeMode === "call"}
+                                    >
+                                      {isLoading.buyOrder ? "Buying..." : "Buy Put"}
+                                    </Button>
                                     <div className="flex items-center space-x-2">
                                       <Checkbox
                                         id="putBof"
@@ -581,20 +664,10 @@ export default function Home() {
                                     </div>
                                   </div>
                                 </div>
-                                <Button
-                                  onClick={() => handleBuyOption("put", "LIMIT", putPrice, atmPut.symbol, bofEnabled)}
-                                  className="w-full"
-                                  disabled={isLoading.buyOrder}
-                                >
-                                  {isLoading.buyOrder ? "Buying..." : "Buy Put"}
-                                </Button>
                               </TabsContent>
-                              <TabsContent value="STOP_LOSS" className="space-y-4 pt-4">
+
+                              <TabsContent value="STOP_LOSS" className="space-y-4">
                                 <div>
-                                  <label
-                                    htmlFor="putStopPrice"
-                                    className="block text-sm font-medium text-gray-700"
-                                  ></label>
                                   <div className="flex items-center space-x-2">
                                     <Input
                                       id="putStopPrice"
@@ -602,8 +675,17 @@ export default function Home() {
                                       value={putPrice}
                                       onChange={(e) => setPutPrice(e.target.value)}
                                       placeholder="Enter stop limit price"
-                                      className="flex-grow"
+                                      className="w-50"
+                                      onFocus={handlePutPriceFocus}
+                                      onBlur={handlePutPriceBlur}
                                     />
+                                    <Button
+                                      onClick={() => handleBuyOption("put", "STOP_LOSS", putPrice, atmPut.symbol)}
+                                      className="w-30"
+                                      disabled={isLoading.buyOrder || tradeMode === "no-trade" || tradeMode === "call"}
+                                    >
+                                      {isLoading.buyOrder ? "Buying..." : "Buy Put"}
+                                    </Button>
                                     <div className="flex items-center space-x-2">
                                       <Checkbox
                                         id="putStopBof"
@@ -619,22 +701,10 @@ export default function Home() {
                                     </div>
                                   </div>
                                 </div>
-                                <Button
-                                  onClick={() =>
-                                    handleBuyOption("put", "STOP_LOSS", putPrice, atmPut.symbol, bofEnabled)
-                                  }
-                                  className="w-full"
-                                  disabled={isLoading.buyOrder}
-                                >
-                                  {isLoading.buyOrder ? "Buying..." : "Buy Put"}
-                                </Button>
                               </TabsContent>
-                              <TabsContent value="SL" className="space-y-4 pt-4">
+
+                              <TabsContent value="SL" className="space-y-4">
                                 <div>
-                                  <label
-                                    htmlFor="putMarketPrice"
-                                    className="block text-sm font-medium text-gray-700"
-                                  ></label>
                                   <div className="flex items-center space-x-2">
                                     <Input
                                       id="putMarketPrice"
@@ -642,8 +712,17 @@ export default function Home() {
                                       value={putPrice}
                                       onChange={(e) => setPutPrice(e.target.value)}
                                       placeholder="Enter SL price"
-                                      className="flex-grow"
+                                      className="w-50"
+                                      onFocus={handlePutPriceFocus}
+                                      onBlur={handlePutPriceBlur}
                                     />
+                                    <Button
+                                      onClick={() => handleBuyOption("put", "SL", putPrice, atmPut.symbol)}
+                                      className="w-30"
+                                      disabled={isLoading.buyOrder || tradeMode === "no-trade" || tradeMode === "call"}
+                                    >
+                                      {isLoading.buyOrder ? "Buying..." : "Buy Put"}
+                                    </Button>
                                     <div className="flex items-center space-x-2">
                                       <Checkbox
                                         id="putSlBof"
@@ -659,16 +738,30 @@ export default function Home() {
                                     </div>
                                   </div>
                                 </div>
-                                <Button
-                                  onClick={() => handleBuyOption("put", "SL", putPrice, atmPut.symbol, bofEnabled)}
-                                  className="w-full"
-                                  disabled={isLoading.buyOrder}
-                                >
-                                  {isLoading.buyOrder ? "Buying..." : "Buy Put"}
-                                </Button>
+
                               </TabsContent>
+
+                              <TabsList className="grid w-full grid-cols-3 mt-4">
+                                <TabsTrigger
+                                  value="SL"
+                                  className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700 data-[state=active]:font-medium"
+                                >
+                                  SL
+                                </TabsTrigger>
+                                <TabsTrigger
+                                  value="LIMIT"
+                                  className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700 data-[state=active]:font-medium"
+                                >
+                                  Limit
+                                </TabsTrigger>
+                                <TabsTrigger
+                                  value="STOP_LOSS"
+                                  className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700 data-[state=active]:font-medium"
+                                >
+                                  Stop Limit
+                                </TabsTrigger>
+                              </TabsList>
                             </Tabs>
-                            <div className="text-sm text-gray-500">Latest price: ₹{atmPut.price.toFixed(2)}</div>
                           </div>
                         </TabsContent>
                       </Tabs>
@@ -682,7 +775,7 @@ export default function Home() {
                     /> */}
                   <Card>
                     <CardHeader className="p-4">
-                      <CardTitle>Open Orders</CardTitle>
+                      <CardTitle className="text-sm">Open Orders</CardTitle>
                     </CardHeader>
                     <CardContent className="p-4 text-sm">
                       <Table>
@@ -761,27 +854,27 @@ export default function Home() {
                       </Table>
                     </CardContent>
                   </Card>
-                  <Card>
-                    <CardHeader className="p-4 ">
-                      <CardTitle>Update Targets</CardTitle>
+                  <Card className="border-2 border-red-500">
+                    <CardHeader className="p-4 bg-red-500 rounded-t-lg  ">
+                      <CardTitle className="text-sm" >Update Targets</CardTitle>
                     </CardHeader>
-                    <CardContent className="p-4 text-sm">
-                      <div className="flex flex-col space-y-4">
-                        <div className="flex flex-col space-y-2">
-                          {[
+                    <CardContent className="p-4 text-sm ">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-4">
+                            {[
                             { label: "T1", value: t1, setter: setT1 },
                             { label: "T2", value: t2, setter: setT2 },
-                            { label: "T3", value: t3, setter: setT3 },
+                            // { label: "T3", value: t3, setter: setT3 },
                           ].map(({ label, value, setter }) => (
                             <div key={label} className="flex items-center space-x-2">
-                              <Button
+                              {/* <Button
                                 variant="outline"
                                 className="px-4 py-1 bg-red-100 hover:bg-red-200 text-red-600 border-red-200"
                                 onClick={() => decrementTarget(setter)}
                               >
                                 -
-                              </Button>
-                              <div className="flex-grow relative">
+                              </Button> */}
+                             <div className="flex-grow relative">
                                 <Input
                                   type="number"
                                   value={value}
@@ -790,28 +883,28 @@ export default function Home() {
                                   min="0"
                                   step="10"
                                   placeholder={label}
-                                />
-                                <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-gray-500">
+                                /> 
+                                <span className="absolute inset-y-0 left-0 bg-red-100 px-3 flex items-center text-sm text-gray-500">
                                   {label}
                                 </span>
                               </div>
-                              <Button
+                              {/* <Button
                                 variant="outline"
                                 className="px-4 py-1 bg-green-100 hover:bg-green-200 text-green-600 border-green-200"
                                 onClick={() => incrementTarget(setter)}
                               >
                                 +
-                              </Button>
+                              </Button> */}
                             </div>
                           ))}
                         </div>
                         <Button
-                          className="px-4 py-1 "
+                          className="px-4 py-1 w-60"
                           onClick={async () => {
-                              const result = await updateTargets(t1, t2, t3)
-                              toast({
-                                title: "Targets Updated",
-                              })
+                            const result = await updateTargets(t1, t2)
+                            toast({
+                              title: "Targets Updated",
+                            })
                           }}
                         >
                           Update Targets
@@ -897,4 +990,3 @@ export default function Home() {
     -moz-appearance: textfield;
   }
 `}</style>
-

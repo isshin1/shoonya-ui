@@ -28,7 +28,7 @@ type UpdateDataProps = {
   setTimerLeft: Dispatch<SetStateAction<string | null>>
   setT1Progress?: Dispatch<SetStateAction<number>>
   setT2Progress?: Dispatch<SetStateAction<number>>
-  setT3Progress?: Dispatch<SetStateAction<number>>
+  // setT3Progress?: Dispatch<SetStateAction<number>>
 }
 
 export function updateData(
@@ -41,7 +41,7 @@ export function updateData(
     setTimerLeft,
     setT1Progress,
     setT2Progress,
-    setT3Progress,
+    // setT3Progress,
   }: UpdateDataProps,
 ) {
   if (message.type === "atm") {
@@ -113,9 +113,7 @@ export function updateData(
       setT1Progress(points)
     } else if (target === "t2" && setT2Progress) {
       setT2Progress(points)
-    } else if (target === "t3" && setT3Progress) {
-      setT3Progress(points)
-    }
+    } 
   }
 }
 

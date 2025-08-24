@@ -1,28 +1,17 @@
-version: "2"
 services:
-  node:
+  tradefrontend:
+    build:
+      dockerfile: Dockerfile
     container_name: shoonya-ui
-    image: "node:23.4.0"
-    user: "node"
-    working_dir: /app
-    environment:
-      - NODE_ENV=development
-    volumes:
-      - ./:/app
-    expose:
-      - "3000"
+    env_file:
+      - .env
     ports: # use if it is necessary to expose the container to the host machine
       - "3001:3000"
-    command: "npm run dev"
     # command: "npm run start"
     networks:
       docker_network:
-        ipv4_address: 172.25.0.7
+        ipv4_address: 172.25.0.14
 
 networks:
   docker_network:
-    name: docker_network
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.25.0.0/16
+    external: true

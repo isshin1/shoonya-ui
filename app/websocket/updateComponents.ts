@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react"
+import type { Position } from '@/types/types'
 
 type AtmData = {
   price: number
@@ -7,18 +8,7 @@ type AtmData = {
   tt: number
 }
 
-type Position = {
-  id: string
-  tsym: string
-  type: "call" | "put"
-  daybuyavgprc: string
-  totsellavgprc: string
-  currentPrice: string
-  exitPrice: string
-  daybuyqty: string
-  netqty: string
-  status: "active" | "closed"
-}
+
 
 type UpdateDataProps = {
   setAtmCall: Dispatch<SetStateAction<AtmData>>
@@ -44,6 +34,8 @@ export function updateData(
     // setT3Progress,
   }: UpdateDataProps,
 ) {
+  console.log(`message from websocket ${message}`)
+  console.log(`message type ${message.type}`)
   if (message.type === "atm") {
     console.log(`Received ATM update: call token=${message.ceToken}, put token=${message.peToken}`)
 

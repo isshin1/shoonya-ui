@@ -242,10 +242,10 @@ export function PriceTable() {
               {tableData.length > 0 ? (
                 tableData.map((item, index) => (
                   <tr key={item.id || index}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-6 py-1 whitespace-nowrap text-sm font-medium text-gray-900">
                       {item.name || "N/A"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-1 whitespace-nowrap text-sm text-gray-500">
                       {editingRow && editingRow.index === index ? (
                         <input
                           type="text"
@@ -266,18 +266,18 @@ export function PriceTable() {
                       )}
                     </td>
                     <td className={cn(
-                      "px-6 py-4 whitespace-nowrap text-sm",
+                      "px-6 py-1 whitespace-nowrap text-sm",
                       item.call ? "text-green-600 font-bold" : "text-red-600"
                     )}>
                       {formatValue(item.call)}
                     </td>
                     <td className={cn(
-                      "px-6 py-4 whitespace-nowrap text-sm",
+                      "px-6 py-1 whitespace-nowrap text-sm",
                       item.put ? "text-green-600 font-bold" : "text-red-600"
                     )}>
                       {formatValue(item.put)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-1 whitespace-nowrap text-sm text-gray-500">
                       <DropdownMenu.Root>
                         <DropdownMenu.Trigger asChild>
                           <button

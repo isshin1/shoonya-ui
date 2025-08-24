@@ -8,6 +8,7 @@ let updateDataCallback: ((message: any) => void) | null = null;
 
 export function initializeWebSocket(callback: (message: any) => void) {
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+    console.log("socket already opened or connecting")
     return socket;
   }
 
@@ -27,8 +28,9 @@ export function initializeWebSocket(callback: (message: any) => void) {
   const singleQuoteRegex = /'/g;
 
   socket.onmessage = (event) => {
-    // console.log(event.data)
-    const message = JSON.parse(event.data.replace(singleQuoteRegex, '"'));
+    // console.log(` event is ${event.data}`)
+    const message = JSON.parse(event.data)
+    // const message = JSON.parse(event.data.replace(singleQuoteRegex, '"'));
     if (typeof callback === 'function') {
       callback(message);
     }

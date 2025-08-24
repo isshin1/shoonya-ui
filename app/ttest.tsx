@@ -25,15 +25,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Resizable } from '@/components/resizable'
 import { createChart, ColorType } from 'lightweight-charts';
 
-type Position = {
-  id: string
-  symbol: string
-  type: 'call' | 'put'
-  entryPrice: number
-  currentPrice: number
-  quantity: number
-  status: 'active' | 'closed'
-}
+import type { Position } from '@/types/types'
+
 
 type OpenOrder = {
   id: string

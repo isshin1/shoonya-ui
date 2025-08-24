@@ -1,21 +1,8 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import type { Position } from '@/types/types'
 
-
-type Position = {
-  id: string
-  tsym: string
-  type: 'call' | 'put'
-  daybuyavgprc: string
-  totsellavgprc: string
-  currentPrice: string
-  exitPrice: string
-  daybuyqty: string
-  netqty: string
-  status: 'active' | 'closed'
-  [key: string]: any  // Add this line to allow additional properties
-}
 
 interface PositionsCardProps {
   positions: Position[]

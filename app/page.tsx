@@ -48,16 +48,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 
 const TradingViewWidget = dynamic(() => import("@/components/trading-view-widget"), { ssr: false })
 
-type Position = {
-  id: string
-  symbol: string
-  type: "call" | "put"
-  entryPrice: number
-  exitPrice: number
-  currentPrice: number
-  quantity: number
-  status: "active" | "closed"
-}
+import type { Position } from '@/types/types'
+
 
 type OpenOrder = {
   tradingSymbol: string
@@ -78,7 +70,7 @@ type OpenOrder = {
 //   tradeType: string
 // }
 
-type OrderType = "MARKET" | "LIMIT" | "STOP_LOSS"
+type OrderType = "SL" | "LIMIT" | "STOP_LOSS"
 
 function convertString(inputString: string) {
   const regex = /(NIFTY)(\d{2}[A-Z]{3}\d{2})(C|P)(\d+)/
@@ -191,7 +183,7 @@ export default function Home() {
 
   const fetchQuoteCallback = useCallback(() => {
     fetchQuote(setIsLoading, setQuote)
-  }, [])
+  }, [fetchQuote])
 
   const handleRefreshTrade = () => {
     setIsLoading((prev) => ({ ...prev, refreshTrade: true }))
@@ -200,7 +192,7 @@ export default function Home() {
     toast({
       title: "Success",
       description: "Trade refresh initiated",
-      variant: "success",
+      variant: "default",
     })
 
     // Make API call without awaiting the response
@@ -226,7 +218,7 @@ export default function Home() {
       if (response.status === 200) {
         toast({
           title: "Order Modification Sent",
-          description: `Modification request for order ${selectedOrder.norenordno} has been sent.`,
+          description: `Modification request for order ${selectedOrder.orderId} has been sent.`,
         })
         fetchOpenOrdersCallback(setOpenOrders, setIsLoading, toast)
       } else {
@@ -264,18 +256,18 @@ export default function Home() {
     }
   }, [])
 
-  useEffect(() => {
-    fetchQuoteCallback()
-    const intervalId = window.setInterval(
-      () => {
-        fetchQuoteCallback()
-      },
-      5 * 60 * 1000,
-    )
-    return () => {
-      window.clearInterval(intervalId)
-    }
-  }, [fetchQuoteCallback])
+  // useEffect(() => {
+  //   fetchQuoteCallback()
+  //   const intervalId = window.setInterval(
+  //     () => {
+  //       fetchQuoteCallback()
+  //     },
+  //     5 * 60 * 1000,
+  //   )
+  //   return () => {
+  //     window.clearInterval(intervalId)
+  //   }
+  // }, [fetchQuoteCallback])
 
   useEffect(() => {
     if (isModifyOrderOpen) {
@@ -358,11 +350,11 @@ export default function Home() {
         <SidebarInset className="flex flex-col w-full">
           <header className="flex items-center h-10 border-b">
             <div className="flex-grow flex items-center">
-              <div className="text-left cursor-pointer pl-2" onClick={fetchQuoteCallback}>
+              {/* <div className="text-left cursor-pointer pl-2" onClick={fetchQuoteCallback}>
                 <p className="text-xs italic inline-block hover:bg-gray-100 rounded transition-colors px-1">
                   {isLoading.quote ? "Fetching quote..." : quote || "No quote available"}
                 </p>
-              </div>
+              </div> */}
               <div className="ml-4">
                 <div className="bg-gray-100 p-0.5 rounded-md flex h-8">
                   <button

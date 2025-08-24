@@ -1,9 +1,9 @@
-.crate {
+/* .crate {
     display: flex;
   }
   
   .crate > * + * {
-    margin-left: 0.5rem; /* This is equivalent to space-x-2 in Tailwind */
+    margin-left: 0.5rem;
   }
   
   .sidebar-transition {
@@ -18,7 +18,6 @@
     transition: margin-left 300ms ease-in-out;
   }
   
-  * Hide the up and down arrow buttons in number input */
   input[type='number']::-webkit-outer-spin-button,
   input[type='number']::-webkit-inner-spin-button {
     -webkit-appearance: none;
@@ -27,4 +26,4 @@
   
   input[type='number'] {
     -moz-appearance: textfield;
-  }
+  } */

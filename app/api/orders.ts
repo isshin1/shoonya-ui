@@ -26,7 +26,7 @@ export const cancelOrder = async (norenordno: string) => {
 };
 
 export const fetchOpenOrdersCallback = async (setOpenOrders: React.Dispatch<React.SetStateAction<any[]>>, setIsLoading: React.Dispatch<React.SetStateAction<any>>, toast: any) => {
-  setIsLoading(prev => ({ ...prev, openOrders: true }));
+  setIsLoading((prev: any) => ({ ...prev, openOrders: true }));
   try {
     const orders = await fetchOpenOrders();
     setOpenOrders(orders);
@@ -38,7 +38,7 @@ export const fetchOpenOrdersCallback = async (setOpenOrders: React.Dispatch<Reac
     //   variant: "destructive",
     // });
   } finally {
-    setIsLoading(prev => ({ ...prev, openOrders: false }));
+    setIsLoading((prev: any) => ({ ...prev, openOrders: false }));
   }
 };
 

@@ -34,8 +34,8 @@ export function updateData(
     // setT3Progress,
   }: UpdateDataProps,
 ) {
-  console.log(`message from websocket ${message}`)
-  console.log(`message type ${message.type}`)
+  // console.log(`message from websocket ${message}`)
+  // console.log(`message type ${message.type}`)
   if (message.type === "atm") {
     console.log(`Received ATM update: call token=${message.ceToken}, put token=${message.peToken}`)
 
@@ -57,7 +57,7 @@ export function updateData(
   if (message.token && message.price && message.tt) {
     // Convert tokens to strings for comparison to avoid type mismatches
     const messageToken = String(message.token)
-
+    // console.log(messageToken)
     setAtmCall((prevState) => {
       const prevToken = String(prevState.token)
 

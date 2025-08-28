@@ -39,8 +39,8 @@ export async function fetchOptionPrices(symbols: OptionSymbols): Promise<OptionP
     const atmCall = symbols[propertyName1]
     const atmPut = symbols[propertyName2]
 
-    console.log(atmCall)
-    console.log(atmPut)
+    // console.log(atmCall)
+    // console.log(atmPut)
 
     const symbolsString = `${symbols.atmCall},${symbols.atmPut}`
 
@@ -62,7 +62,7 @@ export async function fetchOptionPrices(symbols: OptionSymbols): Promise<OptionP
 export const buyOption = async (
   type: "call" | "put",
   orderType: OrderType,
-  price: string,
+  price: number,
   token: string,
   bof: boolean,
   setIsLoading: (value: React.SetStateAction<{ [key: string]: boolean }>) => void,

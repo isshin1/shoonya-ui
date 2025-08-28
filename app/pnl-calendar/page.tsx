@@ -35,7 +35,12 @@ export default function PnLCalendar() {
         throw new Error('Failed to fetch PnL data')
       }
       const data = await response.json()
-      setPnlData(data)
+      if (typeof data === "object" && data !== null) {
+        setPnlData(data)
+      } else {
+        console.error("Fetched PnL data is not an object:", data)
+        setPnlData({}) // Or handle accordingly
+      }
     } catch (error) {
       console.error('Error fetching PnL data:', error)
       // Handle error (e.g., show a toast notification)

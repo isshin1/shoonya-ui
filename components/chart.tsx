@@ -65,6 +65,11 @@ export function RealTimeChart({
   const [historicalData, setHistoricalData] = useState<CandlestickData[]>([])
   const lastUpdateRef = useRef<number>(0)
   const currentSymbolRef = useRef<string>("")
+  const [windowWidth, setWindowWidth] = useState(0)
+
+  useEffect(() => {
+    setWindowWidth(window.innerWidth)
+  }, [])
 
   // Add refs to track last processed prices and timestamps
   const lastProcessedCallRef = useRef<{ price: number; tt: number }>({ price: 0, tt: 0 })
@@ -216,7 +221,7 @@ export function RealTimeChart({
       
       // Get responsive dimensions
       const container = chartContainerRef.current
-      const width = container.clientWidth || window.innerWidth - 32 // Account for padding
+      const width = container.clientWidth || windowWidth - 32 // Account for padding
       const height = container.clientHeight || Math.min(400, window.innerHeight * 0.4) // Mobile-friendly height
       
       chartRef.current = createChart(container, {
@@ -230,12 +235,12 @@ export function RealTimeChart({
           vertLines: { 
             color: "#e0e0e0", 
             style: LineStyle.Dashed,
-            visible: window.innerWidth > 768 // Hide on mobile for cleaner look
+            visible: windowWidth > 768 // Hide on mobile for cleaner look
           },
           horzLines: { 
             color: "#e0e0e0", 
             style: LineStyle.Dashed,
-            visible: window.innerWidth > 768 // Hide on mobile for cleaner look
+            visible: windowWidth > 768 // Hide on mobile for cleaner look
           },
         },
         timeScale: {
@@ -243,20 +248,20 @@ export function RealTimeChart({
           secondsVisible: false,
           tickMarkFormatter: (time: UTCTimestamp) => formatTimeIST(time),
           // Mobile-specific time scale options
-          rightOffset: window.innerWidth < 768 ? 5 : 12,
-          barSpacing: window.innerWidth < 768 ? 4 : 6,
-          minBarSpacing: window.innerWidth < 768 ? 0.5 : 1,
+          rightOffset: windowWidth < 768 ? 5 : 12,
+          barSpacing: windowWidth < 768 ? 4 : 6,
+          minBarSpacing: windowWidth < 768 ? 0.5 : 1,
         },
         crosshair: {
           vertLine: {
             labelVisible: true,
             labelBackgroundColor: "rgba(46, 46, 46, 0.8)",
-            width: window.innerWidth < 768 ? 1 : 2,
+            width: windowWidth < 768 ? 1 : 2,
           },
           horzLine: {
             labelVisible: true,
             labelBackgroundColor: "rgba(46, 46, 46, 0.8)",
-            width: window.innerWidth < 768 ? 1 : 2,
+            width: windowWidth < 768 ? 1 : 2,
           },
         },
         localization: {
@@ -269,7 +274,7 @@ export function RealTimeChart({
             bottom: 0.1,
           },
           borderVisible: false,
-          entireTextOnly: window.innerWidth < 768, // Show only full price labels on mobile
+          entireTextOnly: windowWidth < 768, // Show only full price labels on mobile
         },
         // Handle touch interactions better on mobile
         handleScroll: {
@@ -308,7 +313,7 @@ export function RealTimeChart({
         watermark: {
           text: currentTab === "call" ? "Call Option" : "Put Option",
           visible: true,
-          fontSize: window.innerWidth < 768 ? 18 : 24, // Smaller font on mobile
+          fontSize: windowWidth < 768 ? 18 : 24, // Smaller font on mobile
           horzAlign: "center",
           vertAlign: "center",
         },
@@ -343,7 +348,7 @@ export function RealTimeChart({
     const handleResize = () => {
       if (chartRef.current && chartContainerRef.current) {
         const container = chartContainerRef.current
-        const width = container.clientWidth || window.innerWidth - 32
+        const width = container.clientWidth || windowWidth - 32
         const height = container.clientHeight || Math.min(400, window.innerHeight * 0.4)
         
         chartRef.current.applyOptions({
@@ -351,23 +356,23 @@ export function RealTimeChart({
           height,
           // Update mobile-specific options on resize
           timeScale: {
-            rightOffset: window.innerWidth < 768 ? 5 : 12,
-            barSpacing: window.innerWidth < 768 ? 4 : 6,
-            minBarSpacing: window.innerWidth < 768 ? 0.5 : 1,
+            rightOffset: windowWidth < 768 ? 5 : 12,
+            barSpacing: windowWidth < 768 ? 4 : 6,
+            minBarSpacing: windowWidth < 768 ? 0.5 : 1,
           },
           grid: {
             vertLines: { 
-              visible: window.innerWidth > 768 
+              visible: windowWidth > 768 
             },
             horzLines: { 
-              visible: window.innerWidth > 768 
+              visible: windowWidth > 768 
             },
           },
           rightPriceScale: {
-            entireTextOnly: window.innerWidth < 768,
+            entireTextOnly: windowWidth < 768,
           },
           watermark: {
-            fontSize: window.innerWidth < 768 ? 18 : 24,
+            fontSize: windowWidth < 768 ? 18 : 24,
           },
         })
       }
@@ -393,7 +398,7 @@ export function RealTimeChart({
           className="w-full h-full min-h-[300px] md:min-h-[400px]"
           style={{
             // Ensure minimum height on mobile
-            minHeight: window?.innerWidth < 768 ? '300px' : '400px'
+            minHeight: windowWidth < 768 ? '300px' : '400px'
           }}
         >
           {error ? (

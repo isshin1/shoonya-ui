@@ -48,9 +48,10 @@ import { EconomicCalendarPopup } from "@/components/economic-calendar"
 import { Checkbox } from "@/components/ui/checkbox"
 import { UpdateTargets } from "@/components/UpdateTargets"
 import { OpenOrdersTable } from "@/components/OpenOrdersTable"
- import { TradeModeSelector } from "@/components/TradeModeSelector"
- import OptionTradingPanel from "@/components/OptionTradingPanel"
+import { TradeModeSelector } from "@/components/TradeModeSelector"
+import OptionTradingPanel from "@/components/OptionTradingPanel"
 import { RealTimeChart } from "@/components/chart"
+import { Navbar } from "@/components/Navbar"
 const TradingViewWidget = dynamic(() => import("@/components/trading-view-widget"), { ssr: false })
 
 import type { Position } from '@/types/types'
@@ -299,61 +300,23 @@ export default function Home() {
     }, 500);
   };
 
-return (
-  <div className="flex h-screen w-screen overflow-hidden">
+  return (
+    <div className="flex h-screen w-screen overflow-hidden">
     <SidebarProvider defaultOpen={false}>
-      <AppSidebar onCollapsedChange={() => {}} />
-      <SidebarInset className="flex flex-col w-full">
-        <header className="flex items-center h-20 border-b px-3">
-          <div className="flex-grow flex items-center">
-            <TradeModeSelector 
-              tradeMode={tradeMode} 
-              onTradeModeChange={setTradeMode} 
-              setCurrentTab={setCurrentTab}
-            />
-          </div>
-          <div className="flex-shrink-0 mx-4">
-            {timerLeft && timerLeft !== "00:00" && (
-              <div className="h-full flex items-center px-3 bg-yellow-100 text-yellow-800">
-                <span className="font-mono ml-1">Next order in: {timerLeft}</span>
-              </div>
-            )}
-          </div>
-          <div className="flex-shrink-0 flex space-x-2">
-            <div className="sm:block hidden">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={handleRefreshTrade}
-                disabled={isLoading.refreshTrade}
-              >
-                <RefreshCw className={`h-4 w-4 ${isLoading.refreshTrade ? "animate-spin" : ""}`} />
-                <span className="sr-only">Refresh Trade</span>
-              </Button>
-              <EconomicCalendarPopup />
-              <TradePlanPopup />
-            </div>
-            <AlertDialog open={isEndSessionOpen} onOpenChange={setIsEndSessionOpen}>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                  <LogOut className="h-4 w-4 mr-1" />
-                  End Session
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>This action will end your current trading session.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleEndSession}>End Session</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </header>
+      <div className="flex h-screen w-screen overflow-hidden">
+        <AppSidebar onCollapsedChange={() => {}} />
+        <SidebarInset className="flex flex-col w-full">
+          <Navbar
+            tradeMode={tradeMode}
+            onTradeModeChange={setTradeMode}
+            setCurrentTab={setCurrentTab}
+            timerLeft={timerLeft}
+            isLoading={isLoading}
+            handleRefreshTrade={handleRefreshTrade}
+            isEndSessionOpen={isEndSessionOpen}
+            setIsEndSessionOpen={setIsEndSessionOpen}
+            handleEndSession={handleEndSession}
+          />
         
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
@@ -522,16 +485,17 @@ return (
         </div>
 
         {/* Footer with margin info */}
-        <footer className="bg-gray-100 p-4 border-t flex justify-between items-center">
+        <footer className="bg-red-100 p-2 border-t flex justify-between items-center">
           <h2 className="text-lg font-semibold">Trading Dashboard</h2>
           <div className="text-right">
             <span className="text-sm text-gray-600">Margin:</span>
-            <span className="ml-2 text-lg font-semibold">
+            <span className="ml-1 text-lg font-semibold">
               {margin !== null ? `₹${margin.toFixed(2)}` : "Loading..."}
             </span>
           </div>
         </footer>
       </SidebarInset>
+      </div>
     </SidebarProvider>
     
     <Dialog

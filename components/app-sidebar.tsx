@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React from "react";
 import { Home, Calendar, DollarSign } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Sidebar,
   SidebarContent,
@@ -12,6 +13,7 @@ import {
   SidebarHeader,
   SidebarTrigger,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 const navItems = [
@@ -21,48 +23,66 @@ const navItems = [
 ];
 
 export function AppSidebar({ onCollapsedChange }: { onCollapsedChange: (collapsed: boolean) => void }) {
-  const [isCollapsed, setIsCollapsed] = useState(true);
-
-  const handleToggle = () => {
-    const newCollapsedState = !isCollapsed;
-    setIsCollapsed(newCollapsedState);
-    onCollapsedChange(newCollapsedState);
-  };
+  const { open } = useSidebar();
+  const pathname = usePathname();
 
   return (
     <Sidebar
-      className="h-[calc(100vh-4rem)] border-r relative z-10 transition-all duration-300 ease-in-out p-0"
+      className="border-r transition-all duration-300 ease-in-out"
       collapsible="icon"
-      style={{ width: isCollapsed ? "3rem" : "12rem" }}
+      variant="sidebar"
+      side="left"
     >
-      <SidebarHeader>
-        <SidebarTrigger
-          className="w-5 h-5 transition-transform duration-300 ease-in-out"
-          onClick={handleToggle}
-        />
+      <SidebarHeader className="p-0 h-20 flex items-center justify-center border-b">
+        <SidebarTrigger className="w-4 h-4 transition-transform duration-300 ease-in-out" />
       </SidebarHeader>
-      <SidebarContent className="p-0">
+      
+      <SidebarContent className="pt-0">
         <SidebarGroup>
-          <SidebarGroupContent className="p-0">
-            <SidebarMenu>
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="w-full justify-start">
-                    <Link href={item.href} className="flex items-center w-full px-3 py-2">
-                      <item.icon className="h-3 w-3 flex-shrink-0" />
-                      <span
-                        className={`transition-opacity duration-300 ease-in-out ${isCollapsed ? "opacity-0" : "opacity-100"}`}
+          <SidebarGroupContent>
+            <SidebarMenu className="space-y-1">
+              {navItems.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      asChild 
+                      className="h-10 p-0 justify-start data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+                      data-active={isActive}
+                    >
+                      <Link 
+                        href={item.href} 
+                        className={`
+                          flex items-center w-full relative rounded-md
+                          hover:bg-accent hover:text-accent-foreground
+                          focus:bg-accent focus:text-accent-foreground focus:outline-none
+                          transition-colors duration-200
+                          ${isActive ? 'bg-accent text-accent-foreground' : 'text-sidebar-foreground'}
+                        `}
                       >
-                        {item.title}
-                      </span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                          <item.icon className={`
+                            h-4 w-4 flex-shrink-0 transition-colors duration-200
+                            ${isActive ? 'text-accent-foreground' : 'text-sidebar-foreground'}
+                          `} />
+                        </div>
+                        <span className={`
+                          ml-10 truncate text-sm transition-all duration-300
+                          ${!open ? 'opacity-0 w-0' : 'opacity-100 w-auto'}
+                          ${isActive ? 'text-accent-foreground font-medium' : 'text-sidebar-foreground'}
+                        `}>
+                          {item.title}
+                        </span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      
       <SidebarRail />
     </Sidebar>
   );

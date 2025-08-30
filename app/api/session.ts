@@ -2,7 +2,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '@/utils/env';
 export const endSession = async () => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/endSession`);
+    const response = await axios.post(`${API_BASE_URL}/tradeapp/endSession`);
     if (response.status === 200) {
       return { success: true, message: "Your trading session has been successfully ended." };
     } else {
@@ -16,7 +16,7 @@ export const endSession = async () => {
 
 export const addMoney = async (amount: string) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/addFunds/${amount}`);
+    const response = await axios.post(`${API_BASE_URL}/tradeapp/addFunds/${amount}`);
     if (response.status === 200) {
       return { success: true, message: `Sent request for ₹${amount} to be added via upi` };
     } else {

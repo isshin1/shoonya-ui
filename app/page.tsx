@@ -1,11 +1,10 @@
 "use client"
 import { API_BASE_URL } from "@/utils/env"
 
-import type React from "react"
+import  React , {useState, useEffect, useRef, useCallback} from "react"
 
 import {} from "@stitches/react"
 import axios from "axios"
-import { useEffect, useCallback } from "react"
 import { useToast } from "@/components/ui/use-toast"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -38,7 +37,6 @@ import { RefreshCw } from "lucide-react"
 import { TrendingUp, Settings, LogOut, Bell } from 'lucide-react';
 
 import { updateData } from "./websocket/updateComponents"
-import { useState } from "react"
 import { updateTargets } from "./api/targets"
 import { fetchMargin } from "./api/margin"
 import "../styles/global.css"
@@ -52,6 +50,9 @@ import { TradeModeSelector } from "@/components/TradeModeSelector"
 import OptionTradingPanel from "@/components/OptionTradingPanel"
 import { RealTimeChart } from "@/components/chart"
 import { Navbar } from "@/components/Navbar"
+import { AuthDialog } from "@/components/AuthDialog";
+
+
 const TradingViewWidget = dynamic(() => import("@/components/trading-view-widget"), { ssr: false })
 
 import type { Position } from '@/types/types'
@@ -123,10 +124,12 @@ export default function Home() {
   const [putBofEnabled, setPutBofEnabled] = useState(false)
   const [tradeMode, setTradeMode] = useState<"no-trade" | "call" | "put">("no-trade")
 
+
   const [margin, setMargin] = useState<number | null>(null)
 
   const { toast } = useToast()
 
+    
   const handleEndSession = async () => {
     try {
       const result = await endSession()
@@ -187,7 +190,7 @@ export default function Home() {
     setIsModifyOrderOpen(false)
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/modifyOrder/${selectedOrder.orderId}/${newPrice}`)
+      const response = await axios.post(`${API_BASE_URL}/tradeapp/modifyOrder/${selectedOrder.orderId}/${newPrice}`)
       if (response.status === 200) {
         toast({
           title: "Order Modification Sent",

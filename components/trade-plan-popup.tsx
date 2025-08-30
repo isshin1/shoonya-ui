@@ -10,6 +10,7 @@ import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { fetchWithAuth } from "@/app/lib/api";
 
 export function TradePlanPopup() {
   const [isOpen, setIsOpen] = useState(false)
@@ -25,7 +26,7 @@ export function TradePlanPopup() {
     setIsLoading(true)
     try {
       const formattedDate = format(date, "yyyy-MM-dd")
-      const response = await fetch(`${API_BASE_URL}/api/tradePlan?date=${formattedDate}`)
+      const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/tradePlan?date=${formattedDate}`)
       if (!response.ok) {
         throw new Error("Failed to fetch trade plan")
       }
@@ -48,7 +49,7 @@ export function TradePlanPopup() {
     setIsSaving(true)
     try {
       const formattedDate = format(date, "yyyy-MM-dd")
-      const response = await fetch(`${API_BASE_URL}/api/tradePlan`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/tradePlan`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

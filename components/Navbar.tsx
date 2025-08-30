@@ -1,4 +1,5 @@
-import React from "react"
+import React, {useState, useEffect, useRef} from "react";
+
 import { Button } from "@/components/ui/button"
 import {
   AlertDialog,
@@ -11,10 +12,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { RefreshCw, LogOut } from "lucide-react"
+import { RefreshCw, LogOut, Menu, Pin } from "lucide-react"
 import { TradeModeSelector } from "@/components/TradeModeSelector"
 import { TradePlanPopup } from "@/components/trade-plan-popup"
 import { EconomicCalendarPopup } from "@/components/economic-calendar"
+import { AuthDialog } from "./AuthDialog";
+import { useSession } from "@/app/contexts/SessionContext";
+import toast from "react-hot-toast";
 
 interface NavbarProps {
   tradeMode: "no-trade" | "call" | "put"
@@ -42,6 +46,26 @@ export const Navbar: React.FC<NavbarProps> = ({
   setIsEndSessionOpen,
   handleEndSession,
 }) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const { session, logout } = useSession();
+
+    
+  useEffect(() => {
+      const handleClickOutside = (e: MouseEvent) => {
+          if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+              setIsMenuOpen(false);
+          }
+      };
+      if (isMenuOpen) {
+          document.addEventListener("mousedown", handleClickOutside);
+      }
+      return () => {
+          document.removeEventListener("mousedown", handleClickOutside);
+      };
+  }, [isMenuOpen]);
+
   return (
     <header className="flex items-center h-20 border-b px-3">
       <div className="flex-grow flex items-center">
@@ -73,12 +97,68 @@ export const Navbar: React.FC<NavbarProps> = ({
           <EconomicCalendarPopup />
           <TradePlanPopup />
         </div>
+        <div className="relative flex-shrink-0" ref={menuRef}>
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setIsMenuOpen(prev => !prev)}
+                className="h-8 w-8 sm:h-9 sm:w-9"
+            >
+                <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
+            </Button>
+          {isMenuOpen && (
+            <div className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-xl ring-0 ring-green ring-opacity-0 focus:outline-none z-5000">
+                {/* {pathname !== "/" && (
+                    <Link
+                        href="/"
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsMenuOpen(false)}
+                    >
+                        Go to Home
+                    </Link>
+                )} */}
+                {session.isLoggedIn ? (
+                  <div className="relative w-full">
+                      <button
+                          onClick={() => {
+                          logout();
+                          setIsMenuOpen(false);
+                          }}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                          Logout
+                      </button>
+                      
+                      <div
+                      className="absolute top-0 left-4 right-4"
+                      style={{
+                          height: '1px',
+                          backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                          boxShadow: 'none',
+                      }}
+                      />
+                  </div>
+                ) : (
+                    <button
+                        onClick={() => {
+                            toast.success("login pressed")
+                            setIsAuthDialogOpen(true);
+                            setIsMenuOpen(false);
+                        }}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                        Login / Sign Up
+                    </button>
+                )}
+            </div>
+          )}
+        </div>
         <AlertDialog open={isEndSessionOpen} onOpenChange={setIsEndSessionOpen}>
           <AlertDialogTrigger asChild>
-            <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+            {/* <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
               <LogOut className="h-4 w-4 mr-1" />
               End Session
-            </Button>
+            </Button> */}
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -92,6 +172,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           </AlertDialogContent>
         </AlertDialog>
       </div>
+      <AuthDialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen} />
     </header>
+    
   )
 }

@@ -9,7 +9,7 @@ export const fetchQuote = async (
   setIsLoading(prev => ({ ...prev, quote: true }))
   try {
     console.log("fetching quote");
-    const response = await axios.get(`${API_BASE_URL}/api/quote`)
+    const response = await axios.get(`${API_BASE_URL}/tradeapp/quote`)
     console.log(response.data);
     setQuote(response.data.quote)
     console.log(response.data.quote);

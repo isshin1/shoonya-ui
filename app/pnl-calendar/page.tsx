@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input'
 import { CalendarIcon } from 'lucide-react'
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, parseISO, isWeekend } from 'date-fns'
+import { fetchWithAuth } from "@/app/lib/api";
 
 type PnLData = {
   [date: string]: number
@@ -30,7 +31,7 @@ export default function PnLCalendar() {
     try {
       const today = format(new Date(), 'yyyy-MM-dd')
       const limitedEnd = end > today ? today : end
-      const response = await fetch(`${API_BASE_URL}/api/pnl?start=${start}&end=${limitedEnd}`)
+      const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/pnl?start=${start}&end=${limitedEnd}`)
       if (!response.ok) {
         throw new Error('Failed to fetch PnL data')
       }

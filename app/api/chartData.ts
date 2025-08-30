@@ -26,7 +26,7 @@ interface ChartCandleData {
 export async function fetchHistoricalData(symbol: string): Promise<ChartCandleData[]> {
   try {
     console.log(`Fetching historical data for ${symbol}`);
-    const response = await axios.get<CandleData[]>(`${API_BASE_URL}/api/fetchHistoricalData/${symbol}`);
+    const response = await axios.get<CandleData[]>(`${API_BASE_URL}/tradeapp/fetchHistoricalData/${symbol}`);
     console.log('Raw historical data:', response.data);
     const chartData = convertBackendDataToChartData(response.data);
     console.log('Converted chart data:', chartData);

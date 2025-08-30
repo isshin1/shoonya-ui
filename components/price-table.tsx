@@ -7,6 +7,7 @@ import { ReloadIcon, TrashIcon, PlusIcon } from "@radix-ui/react-icons"
 import { Tile, TileHeader, TileTitle, TileContent } from "@/components/ui/tile"
 import { cn } from "@/lib/utils"
 import { Target, Plus, Trash2, Edit3 } from 'lucide-react';
+import { fetchWithAuth } from "@/app/lib/api";
 
 // Update the type to match the actual API response
 type PriceData = {
@@ -30,7 +31,8 @@ export function PriceTable() {
     try {
       setIsLoading(true)
       setError(null)
-      const response = await fetch(`${API_BASE_URL}/api/getDps`)
+      const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/getDps`)
+      console.log(response)
       if (!response.ok) {
         throw new Error(`Failed to fetch price data: ${response.status}`)
       }
@@ -98,7 +100,7 @@ export function PriceTable() {
 
     setIsLoading(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/addDp/${price}/${name}`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/addDp/${price}/${name}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       })
@@ -121,7 +123,7 @@ export function PriceTable() {
   const handleDeleteDp = async (name: string, price: string | number) => {
     setIsLoading(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/deleteDp/${name}/${price}`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/deleteDp/${name}/${price}`, {
         method: "DELETE",
       })
       if (!response.ok) throw new Error("Failed to delete price point")
@@ -154,7 +156,7 @@ export function PriceTable() {
     }
     setIsLoading(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/updateDp/${oldPrice}/${newPrice}`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/updateDp/${oldPrice}/${newPrice}`, {
         method: "PUT",
       })
       if (!response.ok) throw new Error("Failed to update price point")

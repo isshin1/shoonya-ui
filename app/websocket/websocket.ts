@@ -2,6 +2,8 @@ import { toast } from "@/components/ui/use-toast"
 import axios from 'axios';
 import { API_BASE_URL } from '@/utils/env';
 import { WEBSOCKET_BASE_URL } from '@/utils/env';
+import { fetchWithAuth } from '@/app/lib/api';
+
 
 let socket: WebSocket | null = null;
 let updateDataCallback: ((message: any) => void) | null = null;
@@ -14,16 +16,29 @@ export function initializeWebSocket(callback: (message: any) => void) {
 
   socket = new WebSocket(`ws://${WEBSOCKET_BASE_URL}/ws`);
 
-  socket.onopen = () => {
-    sendMessage("frontend connected");
-    console.log('WebSocket connection established, fetching new data');
-    axios.post(`${API_BASE_URL}/api/firstFetch`, {
+
+socket.onopen = async () => {
+  sendMessage("frontend connected");
+  console.log('WebSocket connection established, fetching new data');
+  
+  try {
+    const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/firstFetch`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-      },
+      }
     });
-  };
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('First fetch successful:', data);
+    } else {
+      console.error('First fetch failed:', response.status);
+    }
+  } catch (error) {
+    console.error('Error during first fetch:', error);
+  }
+};
 
   const singleQuoteRegex = /'/g;
 

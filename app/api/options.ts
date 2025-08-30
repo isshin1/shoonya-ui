@@ -2,6 +2,8 @@ import type React from "react"
 import axios from "axios"
 import { toast } from "@/components/ui/use-toast"
 import { API_BASE_URL } from "@/utils/env"
+import { fetchWithAuth } from "@/app/lib/api";
+
 // Explicitly type the response from the API
 type OptionSymbols = {
   atmCall: string
@@ -17,7 +19,7 @@ type OrderType = "SL" | "LIMIT" | "STOP_LOSS"
 export async function fetchOptionSymbols(): Promise<OptionSymbols> {
   try {
     console.log("Fetching option symbols...")
-    const response = await fetch(`${API_BASE_URL}/api/atmSymbols`)
+    const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/atmSymbols`)
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
@@ -45,7 +47,7 @@ export async function fetchOptionPrices(symbols: OptionSymbols): Promise<OptionP
     const symbolsString = `${symbols.atmCall},${symbols.atmPut}`
 
     console.log("got symbols:", symbolsString)
-    const response = await fetch(`${API_BASE_URL}/api/atmPrice/${symbolsString}`)
+    const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/atmPrice/${symbolsString}`)
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
@@ -80,7 +82,7 @@ export const buyOption = async (
   }
   // console.log(price)
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/buyOrder/${token}/${orderType}/${price || 0}/${bof}`)
+    const response = await axios.post(`${API_BASE_URL}/tradeapp/buyOrder/${token}/${orderType}/${price || 0}/${bof}`)
     console.log(response.status)
     const responseBody = response.data
 

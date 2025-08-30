@@ -12,7 +12,7 @@ export interface Position {
 
 export async function fetchPositions(): Promise<Position[]> {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/positions`);
+    const response = await axios.get(`${API_BASE_URL}/tradeapp/positions`);
     return response.data;
   } catch (error) {
     console.error('Error fetching positions:', error);

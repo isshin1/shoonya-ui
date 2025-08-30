@@ -62,7 +62,7 @@ export default function Home() {
 
   const endSession = async () => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/withdrawFunds`);
+      const response = await axios.post(`${API_BASE_URL}/tradeapp/withdrawFunds`);
       console.log(response.status);
       if (response.status === 200) {
         toast({
@@ -84,7 +84,7 @@ export default function Home() {
 
   const addMoney = async () => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/addFunds/${amount}`);
+      const response = await axios.post(`${API_BASE_URL}/tradeapp/addFunds/${amount}`);
       console.log(response.status);
       if (response.status === 200) {
         toast({

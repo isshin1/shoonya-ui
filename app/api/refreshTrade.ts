@@ -1,8 +1,10 @@
+
 import { API_BASE_URL } from "@/utils/env"
+import { fetchWithAuth } from "@/app/lib/api";
 
 export const refreshTrade = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/refreshTrade`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/refreshTrade`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

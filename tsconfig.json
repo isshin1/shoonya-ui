@@ -38,7 +38,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts"
-  ],
+, "components/ui/sidebar.tsx.old"  ],
   "exclude": [
     "node_modules"
   ]

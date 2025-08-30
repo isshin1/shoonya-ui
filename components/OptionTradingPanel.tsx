@@ -81,13 +81,17 @@ const OptionTradingPanel: React.FC<OptionTradingPanelProps> = ({
     // <Card className="h-full w-[700px] max-w-full mx-auto p-0 border-0">
     //   <CardContent className="space-y-4 h-full p-0 border-0">
         <Card>
+        <CardHeader className="pb-3 ">
+          <CardTitle className="font-semibold text-sm">Option Trading</CardTitle>
+        </CardHeader>
           <CardContent className="p-4 text-sm">
             {/* Main Call/Put Tabs */}
             <Tabs
-              defaultValue="call"
+              value={currentTab}
               className="h-full flex flex-col"
               onValueChange={(value) => setCurrentTab(value as "call" | "put")}
             >
+
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="call">
                   {convertString(atmCall.symbol)}

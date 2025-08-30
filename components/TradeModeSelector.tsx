@@ -5,11 +5,13 @@ type TradeMode = "no-trade" | "call" | "put";
 interface TradeModeProps {
   tradeMode: TradeMode;
   onTradeModeChange: (mode: TradeMode) => void;
+  setCurrentTab: ( tab: "call" | "put") => void;
 }
 
 export const TradeModeSelector: React.FC<TradeModeProps> = ({
   tradeMode,
   onTradeModeChange,
+  setCurrentTab,
 }) => {
   return (
     <div className="ml-4">
@@ -30,7 +32,11 @@ export const TradeModeSelector: React.FC<TradeModeProps> = ({
               ? "bg-green-600 text-white shadow-sm"
               : "text-gray-600 hover:text-gray-900"
           }`}
-          onClick={() => onTradeModeChange("call")}
+          onClick={() => {
+            onTradeModeChange("call")
+            setCurrentTab("call")
+            }
+          }
         >
           Call
         </button>
@@ -40,7 +46,11 @@ export const TradeModeSelector: React.FC<TradeModeProps> = ({
               ? "bg-red-600 text-white shadow-sm"
               : "text-gray-600 hover:text-gray-900"
           }`}
-          onClick={() => onTradeModeChange("put")}
+          onClick={() => {
+            onTradeModeChange("put")
+            setCurrentTab("put")
+            }
+          }
         >
           Put
         </button>

@@ -3,18 +3,18 @@
 import { useState, useEffect } from "react"
 import { useToast } from "@/components/ui/use-toast"
 import { API_BASE_URL } from "@/utils/env"
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu"
-import { DotsVerticalIcon, ReloadIcon } from "@radix-ui/react-icons"
+import { ReloadIcon, TrashIcon, PlusIcon } from "@radix-ui/react-icons"
 import { Tile, TileHeader, TileTitle, TileContent } from "@/components/ui/tile"
 import { cn } from "@/lib/utils"
+import { Target, Plus, Trash2, Edit3 } from 'lucide-react';
 
 // Update the type to match the actual API response
 type PriceData = {
   id?: string
   name: string
   price: string | number
-  call: boolean | number
-  put: boolean | number
+  call: boolean | number | string
+  put: boolean | number | string
 }
 
 export function PriceTable() {
@@ -189,180 +189,148 @@ export function PriceTable() {
 
   const formatValue = (value: any): string => {
     if (typeof value === "number") return value.toFixed(2)
-    if (typeof value === "boolean") return value ? "Yes" : "No"
-    if (value === null || value === undefined) return "N/A"
+    if (typeof value === "boolean") return value ? "Strong" : "Weak"
+    if (value === "Strong" || value === "Weak" || value === "Neutral") return value
+    if (value === null || value === undefined) return "Neutral"
     return String(value)
   }
 
+  const getCallPutColor = (value: any): string => {
+    const formatted = formatValue(value)
+    if (formatted === "Strong") return "text-green-600 font-semibold"
+    if (formatted === "Weak") return "text-red-600 font-semibold"
+    return "text-gray-600"
+  }
+
   return (
-    <Tile className="border-2 border-indigo-400 rounded-lg ">
-      <div className="bg-[#2E2867]  py-0 rounded-t-lg -m-[2px]">
-        <TileHeader className="flex items-center justify-between py-2">
-          <TileTitle className="text-white text-sm ">Price Points</TileTitle>
+    <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <h2 className="font-semibold text-sm text-gray-900">Price Points</h2>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">{tableData.length} Points</span>
           <button
             onClick={fetchPriceData}
             disabled={isLoading}
             aria-label="Refresh"
-            className="ml-auto inline-flex items-center px-2 py-2 border border-gray-300 text-sm font-medium rounded-full shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+            className="p-1 hover:bg-gray-100 rounded"
           >
-            <ReloadIcon className={isLoading ? "animate-spin h-5 w-5" : "h-5 w-5"} />
+            <ReloadIcon className={cn("h-4 w-4 text-gray-500", isLoading && "animate-spin")} />
           </button>
-        </TileHeader>
+        </div>
       </div>
-      <TileContent >
+
+      {/* Content */}
+      <div className="p-4">
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            <p className="font-bold">Error:</p>
+          <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded mb-4 text-sm">
+            <p className="font-medium">Error:</p>
             <p>{error}</p>
           </div>
         )}
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Price
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Call
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Put
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {tableData.length > 0 ? (
-                tableData.map((item, index) => (
-                  <tr key={item.id || index}>
-                    <td className="px-6 py-1 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {item.name || "N/A"}
-                    </td>
-                    <td className="px-6 py-1 whitespace-nowrap text-sm text-gray-500">
-                      {editingRow && editingRow.index === index ? (
-                        <input
-                          type="text"
-                          value={editingRow.newPrice}
-                          onChange={e => setEditingRow({ ...editingRow, newPrice: e.target.value })}
-                          onKeyDown={e => {
-                            if (e.key === "Enter") {
-                              handleUpdateDp(item.name, item.price, editingRow.newPrice)
-                            } else if (e.key === "Escape") {
-                              setEditingRow(null)
-                            }
-                          }}
-                          autoFocus
-                          className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md  px-4 py-2 h-10"
-                        />
-                      ) : (
-                        formatValue(item.price)
-                      )}
-                    </td>
-                    <td className={cn(
-                      "px-6 py-1 whitespace-nowrap text-sm",
-                      item.call ? "text-green-600 font-bold" : "text-red-600"
-                    )}>
-                      {formatValue(item.call)}
-                    </td>
-                    <td className={cn(
-                      "px-6 py-1 whitespace-nowrap text-sm",
-                      item.put ? "text-green-600 font-bold" : "text-red-600"
-                    )}>
-                      {formatValue(item.put)}
-                    </td>
-                    <td className="px-6 py-1 whitespace-nowrap text-sm text-gray-500">
-                      <DropdownMenu.Root>
-                        <DropdownMenu.Trigger asChild>
-                          <button
-                            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background hover:bg-accent hover:text-accent-foreground h-10 py-2 px-4"
-                            disabled={isLoading}
-                          >
-                            <DotsVerticalIcon className="h-4 w-4" />
-                          </button>
-                        </DropdownMenu.Trigger>
-                        <DropdownMenu.Portal>
-                          <DropdownMenu.Content
-                            className="min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-80"
-                            sideOffset={5}
-                            align="end"
-                          >
-                            <DropdownMenu.Item
-                              className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
-                              onSelect={() => handleEditDp(index)}
-                              disabled={editingRow !== null}
-                            >
-                              Edit
-                            </DropdownMenu.Item>
-                            <DropdownMenu.Item
-                              className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-red-600"
-                              onSelect={() => handleDeleteDp(item.name, item.price)}
-                              disabled={isLoading}
-                            >
-                              Delete
-                            </DropdownMenu.Item>
-                          </DropdownMenu.Content>
-                        </DropdownMenu.Portal>
-                      </DropdownMenu.Root>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
-                    {isLoading ? "Loading data..." : "No data available"}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {/* Table Header */}
+        <div className="border border-gray-200 px-3 rounded-lg">
+          <div className="grid grid-cols-5 gap-4 py-3 text-sm font-medium text-gray-700 border-b border-gray-200">
+            <div>Name</div>
+            <div>Price</div>
+            <div>Call</div>
+            <div>Put</div>
+            <div></div>
+          </div>
 
-        {/* Inputs grid, no refresh button here */}
-        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-3">
-          <div>
-            {/* <label htmlFor="name-input" className="block text-sm font-medium text-gray-700">
-              Name
-            </label> */}
-            <input
-              type="text"
-              id="name-input"
-              value={name}
-              placeholder="Enter Name"
-              onChange={e => setName(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-black-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 h-10"
-            />
-          </div>
-          <div>
-            {/* <label htmlFor="price-input" className="block text-sm font-medium text-gray-700">
-              Price
-            </label> */}
-            <input
-              type="text"
-              id="price-input"
-              value={price}
-              placeholder="Enter Price"
-              onChange={e => setPrice(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 h-10"
-            />
-          </div>
-          <div>
-            <button
-              onClick={handleUpdate}
-              disabled={isLoading}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-            >
-              {isLoading ? "Updating..." : "Add DP"}
-            </button>
+          {/* Table Rows */}
+          <div className="space-y-1">
+            {tableData.length > 0 ? (
+              tableData.map((item, index) => (
+                <div key={item.id || index} className="grid grid-cols-5 gap-4 py-3 text-sm border-b border-gray-100 last:border-b-0">
+                  <div className="font-medium text-gray-900">
+                    {item.name || "N/A"}
+                  </div>
+                  <div className="text-gray-900">
+                    {editingRow && editingRow.index === index ? (
+                      <input
+                        type="text"
+                        value={editingRow.newPrice}
+                        onChange={e => setEditingRow({ ...editingRow, newPrice: e.target.value })}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") {
+                            handleUpdateDp(item.name, item.price, editingRow.newPrice)
+                          } else if (e.key === "Escape") {
+                            setEditingRow(null)
+                          }
+                        }}
+                        autoFocus
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <span onClick={() => handleEditDp(index)} className="cursor-pointer hover:bg-gray-50 px-1 py-1 rounded">
+                        ₹{typeof item.price === 'number' ? item.price.toLocaleString('en-IN') : item.price}
+                      </span>
+                    )}
+                  </div>
+                  <div className={getCallPutColor(item.call)}>
+                    {formatValue(item.call)}
+                  </div>
+                  <div className={getCallPutColor(item.put)}>
+                    {formatValue(item.put)}
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => handleDeleteDp(item.name, item.price)}
+                      disabled={isLoading}
+                      className="p-1 hover:bg-red-50 text-red-500 hover:text-red-700 rounded"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="py-2 text-center text-gray-500">
+                {isLoading ? "Loading data..." : "No data available"}
+              </div>
+            )}
           </div>
         </div>
-      </TileContent>
-    </Tile>
+        {/* Input Section */}
+        <div className="mt-2 pt-4  border-gray-200">
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <input
+              type="text"
+              value={name}
+              placeholder="Point Name"
+              onChange={e => setName(e.target.value)}
+              className="px-3 py-2 bg-gray-100 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <div className="relative">
+              <input
+                type="text"
+                value={price}
+                placeholder="Price"
+                onChange={e => setPrice(e.target.value)}
+                className="w-full bg-gray-100 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <button
+                onClick={fetchPriceData}
+                disabled={isLoading}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded"
+              >
+                <ReloadIcon className={cn("h-3 w-3 text-gray-400", isLoading && "animate-spin")} />
+              </button>
+            </div>
+          </div>
+          
+          <button
+            onClick={handleUpdate}
+            disabled={isLoading || !name.trim() || !price.trim()}
+            className="w-full flex items-center justify-center gap-2 px-4 py-1 text-sm font-medium text-black bg-gray-50 border border-gray-300 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <PlusIcon className="h-4 w-4 text-black" />
+            {isLoading ? "Adding..." : "Add Price Point"}
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }

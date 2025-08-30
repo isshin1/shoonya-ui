@@ -8,6 +8,7 @@ import {
   type CandlestickData,
   type UTCTimestamp,
   LineStyle,
+  ColorType,
 } from "lightweight-charts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { fetchHistoricalData } from "@/app/api/chartData"
@@ -131,7 +132,6 @@ export function RealTimeChart({
   const updateChartData = useCallback(
     (symbol: string, price: number, timestamp: number) => {
       if (!price || !timestamp || !seriesRef.current) {
-        // console.log("Missing data for update:", { price, timestamp, seriesExists: !!seriesRef.current })
         return
       }
 
@@ -165,7 +165,6 @@ export function RealTimeChart({
           return [...currentData, newCandle]
         } else if (threeMinuteTimestamp === lastCandle.time) {
           // Update the existing candle
-          // console.log("Updating existing candle")
           const updatedCandle: CandlestickData = {
             time: lastCandle.time,
             open: lastCandle.open,
@@ -197,10 +196,8 @@ export function RealTimeChart({
         },
         title: timeRemainingString,
       })
-
-      // console.log("Chart update complete")
     },
-    [], // Remove historicalData dependency
+    [],
   )
 
   useEffect(() => {
@@ -216,34 +213,75 @@ export function RealTimeChart({
   useEffect(() => {
     if (isMounted && chartContainerRef.current && !chartRef.current) {
       console.log("Creating new chart instance")
-      chartRef.current = createChart(chartContainerRef.current, {
-        width: chartContainerRef.current.clientWidth,
-        height: chartContainerRef.current.clientHeight,
+      
+      // Get responsive dimensions
+      const container = chartContainerRef.current
+      const width = container.clientWidth || window.innerWidth - 32 // Account for padding
+      const height = container.clientHeight || Math.min(400, window.innerHeight * 0.4) // Mobile-friendly height
+      
+      chartRef.current = createChart(container, {
+        width,
+        height,
         layout: {
-          background: { type: "solid", color: "white" },
+          background: { type: ColorType.Solid, color: "white" },
           textColor: "black",
         },
         grid: {
-          vertLines: { color: "#e0e0e0", style: LineStyle.Dashed },
-          horzLines: { color: "#e0e0e0", style: LineStyle.Dashed },
+          vertLines: { 
+            color: "#e0e0e0", 
+            style: LineStyle.Dashed,
+            visible: window.innerWidth > 768 // Hide on mobile for cleaner look
+          },
+          horzLines: { 
+            color: "#e0e0e0", 
+            style: LineStyle.Dashed,
+            visible: window.innerWidth > 768 // Hide on mobile for cleaner look
+          },
         },
         timeScale: {
           timeVisible: true,
           secondsVisible: false,
           tickMarkFormatter: (time: UTCTimestamp) => formatTimeIST(time),
+          // Mobile-specific time scale options
+          rightOffset: window.innerWidth < 768 ? 5 : 12,
+          barSpacing: window.innerWidth < 768 ? 4 : 6,
+          minBarSpacing: window.innerWidth < 768 ? 0.5 : 1,
         },
         crosshair: {
           vertLine: {
             labelVisible: true,
             labelBackgroundColor: "rgba(46, 46, 46, 0.8)",
+            width: window.innerWidth < 768 ? 1 : 2,
           },
           horzLine: {
             labelVisible: true,
             labelBackgroundColor: "rgba(46, 46, 46, 0.8)",
+            width: window.innerWidth < 768 ? 1 : 2,
           },
         },
         localization: {
           timeFormatter: (timestamp: UTCTimestamp) => formatTimeIST(timestamp),
+        },
+        // Mobile-specific right price scale options
+        rightPriceScale: {
+          scaleMargins: {
+            top: 0.1,
+            bottom: 0.1,
+          },
+          borderVisible: false,
+          entireTextOnly: window.innerWidth < 768, // Show only full price labels on mobile
+        },
+        // Handle touch interactions better on mobile
+        handleScroll: {
+          mouseWheel: true,
+          pressedMouseMove: true,
+          horzTouchDrag: true,
+          vertTouchDrag: true,
+        },
+        handleScale: {
+          axisPressedMouseMove: true,
+          mouseWheel: true,
+          pinch: true,
         },
       })
 
@@ -270,7 +308,7 @@ export function RealTimeChart({
         watermark: {
           text: currentTab === "call" ? "Call Option" : "Put Option",
           visible: true,
-          fontSize: 24,
+          fontSize: window.innerWidth < 768 ? 18 : 24, // Smaller font on mobile
           horzAlign: "center",
           vertAlign: "center",
         },
@@ -281,10 +319,8 @@ export function RealTimeChart({
   // Handle call price updates
   useEffect(() => {
     if (isInitialized && atmCallPrice && atmCallTt && currentTab === "call") {
-      // Check if this is actually new data
       const lastProcessed = lastProcessedCallRef.current
       if (atmCallPrice !== lastProcessed.price || atmCallTt !== lastProcessed.tt) {
-        // console.log("Processing new call data:", { atmCallSymbol, atmCallPrice, atmCallTt })
         updateChartData(atmCallSymbol, atmCallPrice, atmCallTt)
         lastProcessedCallRef.current = { price: atmCallPrice, tt: atmCallTt }
       }
@@ -294,45 +330,81 @@ export function RealTimeChart({
   // Handle put price updates
   useEffect(() => {
     if (isInitialized && atmPutPrice && atmPutTt && currentTab === "put") {
-      // Check if this is actually new data
       const lastProcessed = lastProcessedPutRef.current
       if (atmPutPrice !== lastProcessed.price || atmPutTt !== lastProcessed.tt) {
-        // console.log("Processing new put data:", { atmPutSymbol, atmPutPrice, atmPutTt })
         updateChartData(atmPutSymbol, atmPutPrice, atmPutTt)
         lastProcessedPutRef.current = { price: atmPutPrice, tt: atmPutTt }
       }
     }
   }, [isInitialized, currentTab, atmPutPrice, atmPutTt, atmPutSymbol, updateChartData])
 
-  // Handle resize
+  // Enhanced resize handler for mobile responsiveness
   useEffect(() => {
     const handleResize = () => {
       if (chartRef.current && chartContainerRef.current) {
+        const container = chartContainerRef.current
+        const width = container.clientWidth || window.innerWidth - 32
+        const height = container.clientHeight || Math.min(400, window.innerHeight * 0.4)
+        
         chartRef.current.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-          height: chartContainerRef.current.clientHeight,
+          width,
+          height,
+          // Update mobile-specific options on resize
+          timeScale: {
+            rightOffset: window.innerWidth < 768 ? 5 : 12,
+            barSpacing: window.innerWidth < 768 ? 4 : 6,
+            minBarSpacing: window.innerWidth < 768 ? 0.5 : 1,
+          },
+          grid: {
+            vertLines: { 
+              visible: window.innerWidth > 768 
+            },
+            horzLines: { 
+              visible: window.innerWidth > 768 
+            },
+          },
+          rightPriceScale: {
+            entireTextOnly: window.innerWidth < 768,
+          },
+          watermark: {
+            fontSize: window.innerWidth < 768 ? 18 : 24,
+          },
         })
       }
     }
 
     window.addEventListener("resize", handleResize)
+    // Call immediately to set initial mobile state
+    handleResize()
+    
     return () => window.removeEventListener("resize", handleResize)
-  }, [])
+  }, [isInitialized])
 
   return (
-    <Card className="w-1000 h-full border-none shadow-none">
-      <CardHeader className="p-4 border-none">
-        <CardTitle className="flex justify-between items-center"></CardTitle>
+    <Card className="w-full h-full  border-none shadow-none rounded-none">
+      <CardHeader className="p-2 md:p-4 border-none">
+        <CardTitle className="flex justify-between items-center text-sm md:text-base">
+          {/* You can add title content here if needed */}
+        </CardTitle>
       </CardHeader>
-      <CardContent className="p-0 h-[calc(90%-5rem)]">
-        <div ref={chartContainerRef} className="w-full h-full">
+      <CardContent className="p-0 h-[calc(100%-3rem)] md:h-[calc(100%-5rem)]">
+        <div 
+          ref={chartContainerRef} 
+          className="w-full h-full min-h-[300px] md:min-h-[400px]"
+          style={{
+            // Ensure minimum height on mobile
+            minHeight: window?.innerWidth < 768 ? '300px' : '400px'
+          }}
+        >
           {error ? (
             <div className="flex items-center justify-center w-full h-full">
-              <p className="text-red-500">{error}</p>
+              <p className="text-red-500 text-sm md:text-base px-4 text-center">{error}</p>
             </div>
           ) : !isInitialized ? (
             <div className="flex items-center justify-center w-full h-full">
-              <p>Initializing chart... {currentTab === "call" ? atmCallSymbol : atmPutSymbol}</p>
+              <p className="text-sm md:text-base px-4 text-center">
+                Initializing chart... {currentTab === "call" ? atmCallSymbol : atmPutSymbol}
+              </p>
             </div>
           ) : null}
         </div>

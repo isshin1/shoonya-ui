@@ -35,6 +35,7 @@ import { cancelOrder, fetchOpenOrdersCallback } from "./api/orders"
 import { endSession, addMoney } from "./api/session"
 import { refreshTrade } from "./api/refreshTrade"
 import { RefreshCw } from "lucide-react"
+import { TrendingUp, Settings, LogOut, Bell } from 'lucide-react';
 
 import { updateData } from "./websocket/updateComponents"
 import { useState } from "react"
@@ -54,17 +55,6 @@ const TradingViewWidget = dynamic(() => import("@/components/trading-view-widget
 
 import type { Position } from '@/types/types'
 
-
-type OpenOrder = {
-  tradingSymbol: string
-  price: string
-  quantity: string
-  currentTradingPrice: string
-  orderType: "LIMIT" | "STOP_LOSS"
-  orderId: string
-  transactionType: "BUY" | "SELL" // Add this line
-}
-
 type OrderType = "SL" | "LIMIT" | "STOP_LOSS"
 
 function convertString(inputString: string) {
@@ -74,6 +64,18 @@ function convertString(inputString: string) {
     return `${p1} ${p2} ${p4} ${ceOrPe}`
   })
   return convertedString
+}
+
+type OpenOrder = {
+  tradingSymbol: string
+  price: string
+  quantity: string
+  currentTradingPrice: string
+  orderType: "LIMIT" | "STOP_LOSS"
+  orderId: string
+  norenordno: string
+  prc: string
+  transactionType: "BUY" | "SELL"
 }
 
 export default function Home() {
@@ -111,7 +113,7 @@ export default function Home() {
   const [orderType, setOrderType] = useState<OrderType>("LIMIT")
   const [selectedOrder, setSelectedOrder] = useState<OpenOrder | null>(null)
   const [newPrice, setNewPrice] = useState<number>(0.0)
-  const [isModifyOrderOpen, setIsModifyOrderOpen] = useState(false) // Added state for Modify Order dialog
+  const [isModifyOrderOpen, setIsModifyOrderOpen] = useState(false)
   const [timerLeft, setTimerLeft] = useState<string | null>(null)
   const [t1, setT1] = useState("20")
   const [t2, setT2] = useState("0")
@@ -159,27 +161,19 @@ export default function Home() {
     }
   }
 
-  const fetchQuoteCallback = useCallback(() => {
-    fetchQuote(setIsLoading, setQuote)
-  }, [fetchQuote])
-
   const handleRefreshTrade = () => {
     setIsLoading((prev) => ({ ...prev, refreshTrade: true }))
 
-    // Show success message immediately
     toast({
       title: "Success",
       description: "Trade refresh initiated",
       variant: "default",
     })
 
-    // Make API call without awaiting the response
     refreshTrade().catch((error) => {
       console.error("Error in background refresh:", error)
-      // We don't show errors to the user since we've already shown success
     })
 
-    // Stop the spinner after 1 second for visual feedback
     setTimeout(() => {
       setIsLoading((prev) => ({ ...prev, refreshTrade: false }))
     }, 1000)
@@ -189,7 +183,7 @@ export default function Home() {
     if (!selectedOrder) return
 
     setIsLoading((prev) => ({ ...prev, modifyOrder: true }))
-    setIsModifyOrderOpen(false) // Close the dialog immediately
+    setIsModifyOrderOpen(false)
 
     try {
       const response = await axios.post(`${API_BASE_URL}/api/modifyOrder/${selectedOrder.orderId}/${newPrice}`)
@@ -211,7 +205,7 @@ export default function Home() {
     } finally {
       setIsLoading((prev) => ({ ...prev, modifyOrder: false }))
       setSelectedOrder(null)
-      setNewPrice("")
+      setNewPrice(0)
     }
   }
 
@@ -265,7 +259,6 @@ export default function Home() {
     }
 
     fetchMarginData()
-    // Fetch margin data every 5 minutes
     const intervalId = setInterval(fetchMarginData, 60 * 1000)
 
     return () => clearInterval(intervalId)
@@ -286,7 +279,6 @@ export default function Home() {
     setter((prev) => Math.max(0, Number.parseInt(prev) - 10).toString())
   }
 
-
   const handleCallPriceFocus = () => {
     setCallPrice(Math.round(atmCall.price * 10) / 10);
   };
@@ -294,8 +286,7 @@ export default function Home() {
   const handleCallPriceBlur = () => {
     setTimeout(() => {
       setCallPrice(0.0);
-    }, 500); // 1000 milliseconds = 1 second
-
+    }, 500);
   };
 
   const handlePutPriceFocus = () => {
@@ -305,29 +296,31 @@ export default function Home() {
   const handlePutPriceBlur = () => {
     setTimeout(() => {
       setPutPrice(0.0);
-    }, 500); // 1000 milliseconds = 1 second
+    }, 500);
   };
 
-  return (
-    <div className="flex h-screen w-screen overflow-hidden">
-      <SidebarProvider defaultOpen={false}>
-        <AppSidebar  onCollapsedChange={() => {}}/>
-        <SidebarInset className="flex flex-col w-full">
-          <header className="flex items-center h-10 border-b">
-            <div className="flex-grow flex items-center">
-              <TradeModeSelector 
-                tradeMode={tradeMode} 
-                onTradeModeChange={setTradeMode} 
-              />
-            </div>
-            <div className="flex-shrink-0 mx-4">
-              {timerLeft && timerLeft !== "00:00" && (
-                <div className="h-full flex items-center px-3 bg-yellow-100 text-yellow-800">
-                  <span className="font-mono ml-1">Next order in: {timerLeft}</span>
-                </div>
-              )}
-            </div>
-            <div className="flex-shrink-0 flex space-x-2">
+return (
+  <div className="flex h-screen w-screen overflow-hidden">
+    <SidebarProvider defaultOpen={false}>
+      <AppSidebar onCollapsedChange={() => {}} />
+      <SidebarInset className="flex flex-col w-full">
+        <header className="flex items-center h-20 border-b px-3">
+          <div className="flex-grow flex items-center">
+            <TradeModeSelector 
+              tradeMode={tradeMode} 
+              onTradeModeChange={setTradeMode} 
+              setCurrentTab={setCurrentTab}
+            />
+          </div>
+          <div className="flex-shrink-0 mx-4">
+            {timerLeft && timerLeft !== "00:00" && (
+              <div className="h-full flex items-center px-3 bg-yellow-100 text-yellow-800">
+                <span className="font-mono ml-1">Next order in: {timerLeft}</span>
+              </div>
+            )}
+          </div>
+          <div className="flex-shrink-0 flex space-x-2">
+            <div className="sm:block hidden">
               <Button
                 variant="ghost"
                 size="icon"
@@ -340,28 +333,34 @@ export default function Home() {
               </Button>
               <EconomicCalendarPopup />
               <TradePlanPopup />
-              <AlertDialog open={isEndSessionOpen} onOpenChange={setIsEndSessionOpen}>
-                <AlertDialogTrigger asChild>
-                  <Button variant="ghost" className="h-full px-3 text-red-500 hover:text-red-700">
-                    End Session
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>This action will end your current trading session.</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleEndSession}>End Session</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
             </div>
-          </header>
-          <div className="flex overflow-hidden border-0 h-full">
-            {/* LEFT: Chart */}
-            <div className="flex-1 min-w-0">
+            <AlertDialog open={isEndSessionOpen} onOpenChange={setIsEndSessionOpen}>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                  <LogOut className="h-4 w-4 mr-1" />
+                  End Session
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                  <AlertDialogDescription>This action will end your current trading session.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleEndSession}>End Session</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </header>
+        
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+          {/* LEFT COLUMN: Chart and Open Orders (Desktop) / Chart only (Mobile) */}
+          <div className="flex-1 min-w-0 flex flex-col">
+            {/* Chart Section */}
+            <div className="h-[50vh] lg:h-[70%] w-full">
               <RealTimeChart
                 atmCallSymbol={atmCall.symbol}
                 atmPutSymbol={atmPut.symbol}
@@ -372,125 +371,232 @@ export default function Home() {
                 atmPutTt={atmPut.tt}
               />
             </div>
-
-            {/* RIGHT: Trading panels, orders, tables */}
-            <div className="hidden lg:block w-[500px] border-l overflow-auto p-4 space-y-4">
-              <OptionTradingPanel
-                atmCall={atmCall}
-                atmPut={atmPut}
-                currentTab={currentTab}
-                setCurrentTab={setCurrentTab}
-                convertString={convertString}
-                callPrice={callPrice}
-                setCallPrice={setCallPrice}
-                putPrice={putPrice}
-                setPutPrice={setPutPrice}
-                isLoading={isLoading}
-                tradeMode={tradeMode}
-                orderType={orderType}
-                setOrderType={setOrderType}
-                callBofEnabled={callBofEnabled}
-                setCallBofEnabled={setCallBofEnabled}
-                putBofEnabled={putBofEnabled}
-                setPutBofEnabled={setPutBofEnabled}
-                handleBuyOption={handleBuyOption}
-                handleCallPriceFocus={handleCallPriceFocus}
-                handleCallPriceBlur={handleCallPriceBlur}
-                handlePutPriceFocus={handlePutPriceFocus}
-                handlePutPriceBlur={handlePutPriceBlur}
-                openOrders={openOrders}
-                handleCancelOrderWrapper={handleCancelOrderWrapper}
-                setSelectedOrder={setSelectedOrder}
-                setNewPrice={setNewPrice}
-                setIsModifyOrderOpen={setIsModifyOrderOpen}
-              />
-
+            
+            {/* Open Orders - Desktop only */}
+            <div className="hidden lg:block flex-1 p-4 overflow-auto">
               <OpenOrdersTable
                 openOrders={openOrders}
                 onCancelOrder={handleCancelOrderWrapper}
                 onModifyOrder={(order) => {
                   setSelectedOrder(order)
-                  setNewPrice(order.prc) // double-check field name
+                  setNewPrice(Number(order.prc))
                   setIsModifyOrderOpen(true)
                 }}
               />
-
-              <UpdateTargets />
-
-              <Card>
-                <PriceTable />
-              </Card>
             </div>
           </div>
 
-          <header className="bg-gray-100 p-4 border-t flex justify-between items-center">
-            <h2 className="text-lg font-semibold">Trading Dashboard</h2>
-            <div className="text-right">
-              <span className="text-sm text-gray-600">Margin:</span>
-              <span className="ml-2 text-lg font-semibold">
-                {margin !== null ? `₹${margin.toFixed(2)}` : "Loading..."}
-              </span>
+          {/* RIGHT COLUMN: Desktop sidebar content */}
+          <div className="hidden lg:block w-[600px] border-l border-gray-200 overflow-auto p-4 space-y-4 bg-gray-50">
+            <UpdateTargets />
+            <PriceTable />
+            <OptionTradingPanel
+              atmCall={atmCall}
+              atmPut={atmPut}
+              currentTab={currentTab}
+              setCurrentTab={setCurrentTab}
+              convertString={convertString}
+              callPrice={callPrice}
+              setCallPrice={setCallPrice}
+              putPrice={putPrice}
+              setPutPrice={setPutPrice}
+              isLoading={isLoading}
+              tradeMode={tradeMode}
+              orderType={orderType}
+              setOrderType={setOrderType}
+              callBofEnabled={callBofEnabled}
+              setCallBofEnabled={setCallBofEnabled}
+              putBofEnabled={putBofEnabled}
+              setPutBofEnabled={setPutBofEnabled}
+              handleBuyOption={handleBuyOption}
+              handleCallPriceFocus={handleCallPriceFocus}
+              handleCallPriceBlur={handleCallPriceBlur}
+              handlePutPriceFocus={handlePutPriceFocus}
+              handlePutPriceBlur={handlePutPriceBlur}
+              openOrders={openOrders}
+              handleCancelOrderWrapper={handleCancelOrderWrapper}
+              setSelectedOrder={setSelectedOrder}
+              setNewPrice={setNewPrice}
+              setIsModifyOrderOpen={setIsModifyOrderOpen}
+            />
+          </div>
+        </div>
+
+        {/* Mobile-only horizontal scrolling cards */}
+        <div className="lg:hidden h-[40vh] border-t border-gray-200 bg-gray-50">
+          <div className="h-full overflow-x-auto overflow-y-hidden">
+            <div className="flex h-full w-max">
+              {/* Option Trading Panel Card */}
+              <div className="w-[95vw] h-full flex-shrink-0 p-2">
+                <Card className="h-full">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Trading Panel</CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-[calc(100%-4rem)] overflow-auto p-3">
+                    <OptionTradingPanel
+                      atmCall={atmCall}
+                      atmPut={atmPut}
+                      currentTab={currentTab}
+                      setCurrentTab={setCurrentTab}
+                      convertString={convertString}
+                      callPrice={callPrice}
+                      setCallPrice={setCallPrice}
+                      putPrice={putPrice}
+                      setPutPrice={setPutPrice}
+                      isLoading={isLoading}
+                      tradeMode={tradeMode}
+                      orderType={orderType}
+                      setOrderType={setOrderType}
+                      callBofEnabled={callBofEnabled}
+                      setCallBofEnabled={setCallBofEnabled}
+                      putBofEnabled={putBofEnabled}
+                      setPutBofEnabled={setPutBofEnabled}
+                      handleBuyOption={handleBuyOption}
+                      handleCallPriceFocus={handleCallPriceFocus}
+                      handleCallPriceBlur={handleCallPriceBlur}
+                      handlePutPriceFocus={handlePutPriceFocus}
+                      handlePutPriceBlur={handlePutPriceBlur}
+                      openOrders={openOrders}
+                      handleCancelOrderWrapper={handleCancelOrderWrapper}
+                      setSelectedOrder={setSelectedOrder}
+                      setNewPrice={setNewPrice}
+                      setIsModifyOrderOpen={setIsModifyOrderOpen}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Open Orders Card */}
+              <div className="w-[95vw] h-full flex-shrink-0 p-2">
+                <Card className="h-full">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Open Orders</CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-[calc(100%-4rem)] overflow-auto p-3">
+                    <OpenOrdersTable
+                      openOrders={openOrders}
+                      onCancelOrder={handleCancelOrderWrapper}
+                      onModifyOrder={(order) => {
+                        setSelectedOrder(order)
+                        setNewPrice(Number(order.prc))
+                        setIsModifyOrderOpen(true)
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Update Targets Card */}
+              <div className="w-[95vw] h-full flex-shrink-0 p-2">
+                <Card className="h-full">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Update Targets</CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-[calc(100%-4rem)] overflow-auto p-3">
+                    <UpdateTargets />
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Price Table Card */}
+              <div className="w-[95vw] h-full flex-shrink-0 p-2">
+                <Card className="h-full">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Price Table</CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-[calc(100%-4rem)] overflow-auto p-3">
+                    <PriceTable />
+                  </CardContent>
+                </Card>
+              </div>
             </div>
-          </header>
-        </SidebarInset>
-      </SidebarProvider>
-      <Dialog
-        open={isModifyOrderOpen}
-        onOpenChange={(open) => {
-          setIsModifyOrderOpen(open)
-          if (!open) {
-            setSelectedOrder(null)
-            setNewPrice("")
-          }
+          </div>
+        </div>
+
+        {/* Swipe indicators for mobile */}
+        <div className="lg:hidden flex justify-center space-x-2 py-2 bg-gray-50">
+          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+          <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+          <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+          <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+        </div>
+
+        {/* Footer with margin info */}
+        <footer className="bg-gray-100 p-4 border-t flex justify-between items-center">
+          <h2 className="text-lg font-semibold">Trading Dashboard</h2>
+          <div className="text-right">
+            <span className="text-sm text-gray-600">Margin:</span>
+            <span className="ml-2 text-lg font-semibold">
+              {margin !== null ? `₹${margin.toFixed(2)}` : "Loading..."}
+            </span>
+          </div>
+        </footer>
+      </SidebarInset>
+    </SidebarProvider>
+    
+    <Dialog
+      open={isModifyOrderOpen}
+      onOpenChange={(open) => {
+        setIsModifyOrderOpen(open)
+        if (!open) {
+          setSelectedOrder(null)
+          setNewPrice(0)
+        }
+      }}
+      modal={false}
+    >
+      <DialogContent
+        className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-background rounded-lg shadow-lg p-6 w-full max-w-md mx-auto"
+        forceMount
+        onInteractOutside={(e) => {
+          e.preventDefault()
         }}
-        modal={false}
       >
-        <DialogContent
-          className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-background rounded-lg shadow-lg p-6 w-full max-w-md mx-auto"
-          forceMount
-          onInteractOutside={(e) => {
-            e.preventDefault()
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle>Modify Order</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="newPrice" className="block text-sm font-medium text-gray-700 pb-2"></label>
-              <Input
-                id="newPrice"
-                type="number"
-                placeholder="Enter new price"
-                value={newPrice}
-                onChange={(e) => setNewPrice(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    modifyOrder()
-                  }
-                }}
-              />
-            </div>
+        <DialogHeader>
+          <DialogTitle>Modify Order</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="newPrice" className="block text-sm font-medium text-gray-700 pb-2"></label>
+            <Input
+              id="newPrice"
+              type="number"
+              placeholder="Enter new price"
+              value={newPrice}
+              onChange={(e) => setNewPrice(Number(e.target.value))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  modifyOrder()
+                }
+              }}
+            />
           </div>
-          <DialogFooter>
-            <Button onClick={modifyOrder} disabled={isLoading.modifyOrder}>
-              {isLoading.modifyOrder ? "Sending..." : "Submit"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
+        </div>
+        <DialogFooter>
+          <Button onClick={modifyOrder} disabled={isLoading.modifyOrder}>
+            {isLoading.modifyOrder ? "Sending..." : "Submit"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <style jsx global>{`
+      /* Remove up and down arrows from number input */
+      input[type="number"]::-webkit-inner-spin-button,
+      input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      input[type="number"] {
+        -moz-appearance: textfield;
+      }
+      
+      /* Ensure smooth horizontal scrolling on mobile */
+      .overflow-x-auto {
+        -webkit-overflow-scrolling: touch;
+      }
+    `}</style>
+  </div>
+)
 }
-;<style jsx global>{`
-  /* Remove up and down arrows from number input */
-  input[type="number"]::-webkit-inner-spin-button,
-  input[type="number"]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-  input[type="number"] {
-    -moz-appearance: textfield;
-  }
-`}</style>

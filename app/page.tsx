@@ -258,11 +258,11 @@ export default function Home() {
           setMargin(0)
         }
         else {
-          toast({
-            title: "Error",
-            description: "Failed to fetch margin data. Please try again.",
-            variant: "destructive",
-          })
+          // toast({
+          //   title: "Error",
+          //   description: "Failed to fetch margin data. Please try again.",
+          //   variant: "destructive",
+          // })
         }
       }
     }

@@ -6,13 +6,13 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import toast from 'react-hot-toast';
+import { useToast } from "@/components/ui/use-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSession } from "@/app/contexts/SessionContext";
 import { useState } from 'react';
 import { API_BASE_URL } from "@/utils/env"
-
+import { useRouter } from 'next/navigation';
 const signInSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
@@ -33,7 +33,8 @@ interface AuthResponse {
 export function AuthDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
   const { login } = useSession();
   const [activeTab, setActiveTab] = useState('signin');
-
+  const { toast } = useToast()
+  const router = useRouter();
   const signInForm = useForm<z.infer<typeof signInSchema>>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
@@ -62,23 +63,36 @@ export function AuthDialog({ open, onOpenChange }: { open: boolean, onOpenChange
       });
 
       const data = await response.json();
-
+      
       if (!response.ok) {
-        throw new Error(data.message || 'Something went wrong');
-      }
-
-      if (data.token && data.roles) {
+        console.log(`${data.error}` || 'Something went wrong');
+        toast({
+          title: "Login Failed",
+          description: data.error || "Invalid email or password. Please try again.",
+          variant: "destructive"
+        });
+      } else if (data.token && data.roles) {
+        // Success toast
+        toast({
+          title: "Welcome back!",
+          description: "You have been signed in successfully."
+        });
+        
         // Pass both token and roles to the login function
         login(data.token, data.roles);
-        toast.success('Sign in successful!');
         onOpenChange(false);
-        window.location.href = "/";
+        // window.location.href = "/";
+        router.push("/");
       } else {
         throw new Error('Token or roles not found in response');
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
-      toast.error(`Sign in failed: ${errorMessage}`);
+      toast({
+        title: "Connection Error",
+        description: `Sign in failed: ${errorMessage}`,
+        variant: "destructive"
+      });
       console.error('Sign in failed:', error);
     }
   }
@@ -93,18 +107,40 @@ export function AuthDialog({ open, onOpenChange }: { open: boolean, onOpenChange
         body: JSON.stringify(values),
       });
 
-      if (!response.ok) {
+      if (response.ok) {
+        // Success toast
+        toast({
+          title: "Account Created!",
+          description: "Sign up successful! You can now sign in with your credentials."
+        });
+        
+        setActiveTab('signin');
+        signUpForm.reset();
+      } else {
         const data = await response.json();
-        throw new Error(data.message || 'Something went wrong');
+        
+        // Handle specific error cases
+        if (response.status === 409) {
+          toast({
+            title: "Account Exists",
+            description: "An account with this email already exists. Please sign in instead.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Sign Up Failed",
+            description: data.error || "Something went wrong. Please try again.",
+            variant: "destructive"
+          });
+        }
       }
-
-      toast.success('Sign up successful! Please sign in.');
-      setActiveTab('signin');
-      signUpForm.reset();
-
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
-      toast.error(`Sign up failed: ${errorMessage}`);
+      toast({
+        title: "Connection Error",
+        description: `Sign up failed: ${errorMessage}`,
+        variant: "destructive"
+      });
       console.error('Sign up failed:', error);
     }
   }

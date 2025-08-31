@@ -4,7 +4,6 @@ import { SidebarProvider } from '@/components/ui/sidebar'
 import './globals.css'
 import { metadata } from './metadata'
 import { SessionProvider } from "@/app/contexts/SessionContext";
-import { CustomToaster } from "@/components/custom-toaster";
 
 export { metadata }
 

@@ -31,7 +31,7 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
       })
       console.log('Session expired, please log in again.'); // Fixed: console.log.error -> console.error
       // Uncomment these if you want auto-logout on 401
-      // localStorage.removeItem('jwt');
+      localStorage.removeItem('jwt');
       // window.dispatchEvent(new Event("logout"));
     }
     

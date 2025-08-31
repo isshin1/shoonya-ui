@@ -10,7 +10,7 @@ services:
     # command: "npm run start"
     networks:
       docker_network:
-        ipv4_address: 172.25.0.14
+        ipv4_address: 172.20.0.14
 
 networks:
   docker_network:

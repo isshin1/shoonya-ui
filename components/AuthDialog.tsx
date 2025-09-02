@@ -62,37 +62,81 @@ export function AuthDialog({ open, onOpenChange }: { open: boolean, onOpenChange
         body: JSON.stringify(values),
       });
 
-      const data = await response.json();
-      
-      if (!response.ok) {
-        console.log(`${data.error}` || 'Something went wrong');
-        toast({
-          title: "Login Failed",
-          description: data.error || "Invalid email or password. Please try again.",
-          variant: "destructive"
-        });
-      } else if (data.token && data.roles) {
-        // Success toast
-        toast({
-          title: "Welcome back!",
-          description: "You have been signed in successfully."
-        });
+      if (response.ok) {
+        // Success case
+        const data = await response.json();
         
-        // Pass both token and roles to the login function
-        login(data.token, data.roles);
-        onOpenChange(false);
-        // window.location.href = "/";
-        router.push("/");
+        if (data.token && data.roles) {
+          // Success toast
+          toast({
+            title: "Welcome back!",
+            description: "You have been signed in successfully."
+          });
+          
+          // Pass both token and roles to the login function
+          login(data.token, data.roles);
+          onOpenChange(false);
+          router.push("/");
+        } else {
+          throw new Error('Token or roles not found in response');
+        }
       } else {
-        throw new Error('Token or roles not found in response');
+        // Error case - handle different status codes
+        let errorMessage = "Invalid email or password. Please try again.";
+        
+        try {
+          const text = await response.text();
+          if (text) {
+            try {
+              const errorData = JSON.parse(text);
+              errorMessage = errorData.error || errorData.message || errorMessage;
+            } catch (e) {
+              // If not JSON, use the text as error message
+              errorMessage = text;
+            }
+          }
+        } catch (e) {
+          // If we can't read the response, use default message
+          console.error('Could not read error response:', e);
+        }
+
+        // Show appropriate error based on status code
+        if (response.status === 401) {
+          toast({
+            title: "Authentication Failed",
+            description: errorMessage,
+            variant: "destructive"
+          });
+        } else if (response.status === 403) {
+          toast({
+            title: "Account Disabled",
+            description: errorMessage,
+            variant: "destructive"
+          });
+        } else if (response.status === 423) { // 423 is Locked status
+          toast({
+            title: "Account Locked",
+            description: errorMessage,
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Login Failed",
+            description: errorMessage,
+            variant: "destructive"
+          });
+        }
       }
     } catch (error) {
+      // Network errors or other unexpected errors
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
+      
       toast({
         title: "Connection Error",
         description: `Sign in failed: ${errorMessage}`,
         variant: "destructive"
       });
+      
       console.error('Sign in failed:', error);
     }
   }
@@ -108,39 +152,70 @@ export function AuthDialog({ open, onOpenChange }: { open: boolean, onOpenChange
       });
 
       if (response.ok) {
-        // Success toast
+        // Success case
         toast({
           title: "Account Created!",
           description: "Sign up successful! You can now sign in with your credentials."
         });
-        
         setActiveTab('signin');
         signUpForm.reset();
       } else {
-        const data = await response.json();
+        // Error case - handle different status codes
+        let errorMessage = "Something went wrong. Please try again.";
         
-        // Handle specific error cases
+        try {
+          const text = await response.text();
+          if (text) {
+            try {
+              const errorData = JSON.parse(text);
+              errorMessage = errorData.error || errorData.message || errorMessage;
+            } catch (e) {
+              // If not JSON, use the text as error message
+              errorMessage = text;
+            }
+          }
+        } catch (e) {
+          // If we can't read the response, use default message
+          console.error('Could not read error response:', e);
+        }
+
+        // Show appropriate error based on status code
         if (response.status === 409) {
           toast({
             title: "Account Exists",
             description: "An account with this email already exists. Please sign in instead.",
             variant: "destructive"
           });
+        } else if (response.status === 400) {
+          toast({
+            title: "Invalid Data",
+            description: errorMessage,
+            variant: "destructive"
+          });
+        } else if (response.status === 422) {
+          toast({
+            title: "Validation Error",
+            description: errorMessage,
+            variant: "destructive"
+          });
         } else {
           toast({
             title: "Sign Up Failed",
-            description: data.error || "Something went wrong. Please try again.",
+            description: errorMessage,
             variant: "destructive"
           });
         }
       }
     } catch (error) {
+      // Network errors or other unexpected errors
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
+      
       toast({
         title: "Connection Error",
         description: `Sign up failed: ${errorMessage}`,
         variant: "destructive"
       });
+      
       console.error('Sign up failed:', error);
     }
   }

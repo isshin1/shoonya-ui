@@ -51,6 +51,7 @@ import OptionTradingPanel from "@/components/OptionTradingPanel"
 import { RealTimeChart } from "@/components/chart"
 import { Navbar } from "@/components/Navbar"
 import { AuthDialog } from "@/components/AuthDialog";
+import { fetchWithAuth } from "@/app/lib/api";
 
 
 const TradingViewWidget = dynamic(() => import("@/components/trading-view-widget"), { ssr: false })
@@ -183,35 +184,36 @@ export default function Home() {
     }, 1000)
   }
 
-  const modifyOrder = async () => {
-    if (!selectedOrder) return
-
-    setIsLoading((prev) => ({ ...prev, modifyOrder: true }))
-    setIsModifyOrderOpen(false)
-
-    try {
-      const response = await axios.post(`${API_BASE_URL}/tradeapp/modifyOrder/${selectedOrder.orderId}/${newPrice}`)
-      if (response.status === 200) {
-        toast({
-          title: "Order Modification Sent",
-          description: `Modification request for order ${selectedOrder.orderId} has been sent.`,
-        })
-        fetchOpenOrdersCallback(setOpenOrders, setIsLoading, toast)
-      } else {
-        throw new Error("Failed to send modify order request")
-      }
-    } catch (error: any) {
+const modifyOrder = async () => {
+  if (!selectedOrder) return
+  setIsLoading((prev) => ({ ...prev, modifyOrder: true }))
+  setIsModifyOrderOpen(false)
+  try {
+    const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/modifyOrder/${selectedOrder.orderId}/${newPrice}`, {
+      method: 'POST'
+    })
+    if (response.ok) {
       toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to send modify order request. Please try again.",
-        variant: "destructive",
+        title: "Order Modification Sent",
+        description: `Modification request for order ${selectedOrder.orderId} has been sent.`,
       })
-    } finally {
-      setIsLoading((prev) => ({ ...prev, modifyOrder: false }))
-      setSelectedOrder(null)
-      setNewPrice(0)
+      fetchOpenOrdersCallback(setOpenOrders, setIsLoading, toast)
+    } else {
+      throw new Error("Failed to send modify order request")
     }
+  } catch (error: any) {
+    toast({
+      title: "Error",
+      description: error.message || "Failed to send modify order request. Please try again.",
+      variant: "destructive",
+    })
+  } finally {
+    setIsLoading((prev) => ({ ...prev, modifyOrder: false }))
+    setSelectedOrder(null)
+    setNewPrice(0)
   }
+}
+
 
   const handleCancelOrderWrapper = useCallback(
     (norenordno: string) => {

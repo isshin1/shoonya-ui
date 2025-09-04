@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { API_BASE_URL } from '@/utils/env';
+import { fetchWithAuth } from "@/app/lib/api";
+
 export const fetchOpenOrders = async () => {
   try {
     const response = await axios.get(`${API_BASE_URL}/tradeapp/openOrders`);
@@ -13,9 +15,12 @@ export const fetchOpenOrders = async () => {
 export const cancelOrder = async (norenordno: string) => {
   console.log("cancelling order", norenordno);
   try {
-    const response = await axios.post(`${API_BASE_URL}/tradeapp/cancelOrder/${norenordno}`);
-    if (response.status === 200) {
-      return response.data;
+    const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/cancelOrder/${norenordno}`, {
+      method: 'POST'
+    });
+    if (response.ok) {
+      const data = await response.json();
+      return data;
     } else {
       throw new Error('Failed to cancel order');
     }

@@ -21,9 +21,10 @@ import { useSession } from "@/app/contexts/SessionContext";
 import toast from "react-hot-toast";
 
 interface NavbarProps {
-  tradeMode: "no-trade" | "call" | "put"
-  onTradeModeChange: (mode: "no-trade" | "call" | "put") => void
-  setCurrentTab: (tab: "call" | "put") => void
+  tradeMode: "fut" | "call" | "put"
+  onTradeModeChange: (mode: "fut" | "call" | "put") => void
+  setCurrentTab: (tab: "fut"  | "call" | "put" ) => void;
+
   timerLeft: string | null
   isLoading: {
     refreshTrade: boolean

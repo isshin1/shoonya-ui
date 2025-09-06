@@ -59,16 +59,31 @@ const TradingViewWidget = dynamic(() => import("@/components/trading-view-widget
 import type { Position } from '@/types/types'
 
 type OrderType = "SL" | "LIMIT" | "STOP_LOSS"
+function convertString(inputString: string): string {
+  if (!inputString || typeof inputString !== 'string') {
+    return inputString;
+  }
 
-function convertString(inputString: string) {
-  const regex = /(NIFTY)(\d{2}[A-Z]{3}\d{2})(C|P)(\d+)/
-  const convertedString = inputString.replace(regex, (match, p1, p2, p3, p4) => {
-    const ceOrPe = p3 === "C" ? "CE" : "PE"
-    return `${p1} ${p2} ${p4} ${ceOrPe}`
-  })
-  return convertedString
+  // Handle format: NIFTY 09 SEP 25950 PUT -> NIFTY 25950 PUT
+  const spaceFormatRegex = /(NIFTY|BANKNIFTY)\s+\d{2}\s+[A-Z]{3}\s+(\d+)\s+(CALL|PUT)/;
+  if (spaceFormatRegex.test(inputString)) {
+    return inputString.replace(spaceFormatRegex, (match, p1, p2, p3) => {
+      return `${p1} ${p2} ${p3}`;
+    });
+  }
+
+  // Handle format: NIFTY24DEC24C24000 -> NIFTY 24000 CALL
+  const compactFormatRegex = /(NIFTY|BANKNIFTY)(\d{2}[A-Z]{3}\d{2})(C|P)(\d+)/;
+  if (compactFormatRegex.test(inputString)) {
+    return inputString.replace(compactFormatRegex, (match, p1, p2, p3, p4) => {
+      const optionType = p3 === "C" ? "CALL" : "PUT";
+      return `${p1} ${p4} ${optionType}`;
+    });
+  }
+
+  // If no pattern matches, return original string
+  return inputString;
 }
-
 type OpenOrder = {
   tradingSymbol: string
   price: string
@@ -96,6 +111,13 @@ export default function Home() {
     token: 0,
     tt: 0,
   })
+  // Add future state
+  const [atmFuture, setAtmFuture] = useState<{ price: number; symbol: string; token: number; tt: number }>({
+    price: 0,
+    symbol: "",
+    token: 0,
+    tt: 0,
+  })
   const [isAddMoneyOpen, setIsAddMoneyOpen] = useState(false)
   const [isEndSessionOpen, setIsEndSessionOpen] = useState(false)
   const [amount, setAmount] = useState("")
@@ -103,7 +125,13 @@ export default function Home() {
   const [lastCallPrice, setLastCallPrice] = useState(0.0);
   const [putPrice, setPutPrice] = useState(0.0)
   const [lastPutPrice, setLastPutPrice] = useState(0.0);
-  const [currentTab, setCurrentTab] = useState<"call" | "put">("call")
+// Add these state variables:
+  const [futPrice, setFutPrice] = useState(0.0)
+  const [lastFutPrice, setLastFutPrice] = useState(0.0)
+  const [futBofEnabled, setFutBofEnabled] = useState(false)
+
+
+  const [currentTab, setCurrentTab] = useState<"fut" | "call" | "put">("fut")
   const [quote, setQuote] = useState("")
   const [isLoading, setIsLoading] = useState({
     options: false,
@@ -123,7 +151,7 @@ export default function Home() {
   const [bofEnabled, setBofEnabled] = useState(false)
   const [callBofEnabled, setCallBofEnabled] = useState(false)
   const [putBofEnabled, setPutBofEnabled] = useState(false)
-  const [tradeMode, setTradeMode] = useState<"no-trade" | "call" | "put">("no-trade")
+  const [tradeMode, setTradeMode] = useState<"fut" | "call" | "put">("fut")
 
 
   const [margin, setMargin] = useState<number | null>(null)
@@ -189,7 +217,7 @@ const modifyOrder = async () => {
   setIsLoading((prev) => ({ ...prev, modifyOrder: true }))
   setIsModifyOrderOpen(false)
   try {
-    const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/modifyOrder/${selectedOrder.orderId}/${newPrice}`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/notr/${selectedOrder.orderId}/${newPrice}`, {
       method: 'POST'
     })
     if (response.ok) {
@@ -224,7 +252,14 @@ const modifyOrder = async () => {
 
   useEffect(() => {
     const handleWebSocketMessage = (message: any) => {
-      updateData(message, { setAtmCall, setAtmPut, setOpenOrders, setPositions, setTimerLeft })
+      updateData(message, { 
+        setAtmCall, 
+        setAtmPut, 
+        setAtmFuture,  // Add the future setter
+        setOpenOrders, 
+        setPositions, 
+        setTimerLeft 
+      })
     }
 
     const socket = initializeWebSocket(handleWebSocketMessage)
@@ -243,11 +278,24 @@ const modifyOrder = async () => {
     }
   }, [isModifyOrderOpen])
 
-  const handleBuyOption = async (type: "call" | "put", orderType: OrderType, price: number, symbol: string) => {
-    const token = type === "call" ? atmCall.token.toString() : atmPut.token.toString()
-    const bofEnabled = type === "call" ? callBofEnabled : putBofEnabled
+  const handleBuyOption = async (type: "call" | "put" | "fut", orderType: OrderType, price: number, symbol: string) => {
+    let token: string
+    let bofEnabled: boolean
+    
+    if (type === "call") {
+      token = atmCall.token.toString()
+      bofEnabled = callBofEnabled
+    } else if (type === "put") {
+      token = atmPut.token.toString()
+      bofEnabled = putBofEnabled
+    } else if (type === "fut") {
+      token = atmFuture.token.toString()
+      bofEnabled = futBofEnabled
+    }
+    
     const result = await buyOption(type, orderType, price, token, bofEnabled, setIsLoading)
   }
+  
 
   useEffect(() => {
     const fetchMarginData = async () => {
@@ -310,6 +358,20 @@ const modifyOrder = async () => {
     }, 500);
   };
 
+  // Add focus/blur handlers for futures:
+  const handleFutPriceFocus = () => {
+    // You'll need to get the current futures price from your websocket data
+    // For now, setting a placeholder - replace with actual futures price
+    setFutPrice(0.0); // Replace with actual futures price when available
+  };
+
+  const handleFutPriceBlur = () => {
+    setTimeout(() => {
+      setFutPrice(0.0);
+    }, 500);
+  };
+
+
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       <SidebarProvider defaultOpen={false}>
@@ -337,11 +399,14 @@ const modifyOrder = async () => {
                   <RealTimeChart
                     atmCallSymbol={atmCall.symbol}
                     atmPutSymbol={atmPut.symbol}
+                    atmFutureSymbol={atmFuture.symbol}
                     currentTab={currentTab}
                     atmCallPrice={atmCall.price}
                     atmPutPrice={atmPut.price}
+                    atmFuturePrice={atmFuture.price} // Make sure this is passed
                     atmCallTt={atmCall.tt}
                     atmPutTt={atmPut.tt}
+                    atmFutureTt={atmFuture.tt} // Make sure this is passed
                   />
                 </div>
 
@@ -363,9 +428,22 @@ const modifyOrder = async () => {
               <div className="hidden lg:block w-[600px] border-l border-gray-200 overflow-auto p-4 space-y-4 bg-gray-50">
                 <UpdateTargets />
                 <PriceTable />
+                {/* Display future info */}
+                {/* <Card>
+                  <CardHeader>
+                    <CardTitle>Future Info</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div>Symbol: {atmFuture.symbol || "Not available"}</div>
+                      <div>Token: {atmFuture.token || "Not available"}</div>
+                    </div>
+                  </CardContent>
+                </Card> */}
                 <OptionTradingPanel
                   atmCall={atmCall}
                   atmPut={atmPut}
+                  atmFuture={atmFuture}  // Add this line
                   currentTab={currentTab}
                   setCurrentTab={setCurrentTab}
                   convertString={convertString}
@@ -373,6 +451,8 @@ const modifyOrder = async () => {
                   setCallPrice={setCallPrice}
                   putPrice={putPrice}
                   setPutPrice={setPutPrice}
+                  futPrice={futPrice}  // Add this line
+                  setFutPrice={setFutPrice}  // Add this line
                   isLoading={isLoading}
                   tradeMode={tradeMode}
                   orderType={orderType}
@@ -380,11 +460,15 @@ const modifyOrder = async () => {
                   callBofEnabled={callBofEnabled}
                   setCallBofEnabled={setCallBofEnabled}
                   putBofEnabled={putBofEnabled}
+                  futBofEnabled={futBofEnabled}  // Add this line
+                  setFutBofEnabled={setFutBofEnabled}  // Add this line
                   setPutBofEnabled={setPutBofEnabled}
                   handleBuyOption={handleBuyOption}
                   handleCallPriceFocus={handleCallPriceFocus}
                   handleCallPriceBlur={handleCallPriceBlur}
                   handlePutPriceFocus={handlePutPriceFocus}
+                  handleFutPriceFocus={handleFutPriceFocus}  // Add this line
+                  handleFutPriceBlur={handleFutPriceBlur}  // Add this line
                   handlePutPriceBlur={handlePutPriceBlur}
                   openOrders={openOrders}
                   handleCancelOrderWrapper={handleCancelOrderWrapper}
@@ -409,6 +493,7 @@ const modifyOrder = async () => {
                         <OptionTradingPanel
                           atmCall={atmCall}
                           atmPut={atmPut}
+                          atmFuture={atmFuture}  // This line was missing in mobile version
                           currentTab={currentTab}
                           setCurrentTab={setCurrentTab}
                           convertString={convertString}
@@ -416,6 +501,8 @@ const modifyOrder = async () => {
                           setCallPrice={setCallPrice}
                           putPrice={putPrice}
                           setPutPrice={setPutPrice}
+                          futPrice={futPrice}  // Make sure this is included
+                          setFutPrice={setFutPrice}  // Make sure this is included
                           isLoading={isLoading}
                           tradeMode={tradeMode}
                           orderType={orderType}
@@ -423,11 +510,15 @@ const modifyOrder = async () => {
                           callBofEnabled={callBofEnabled}
                           setCallBofEnabled={setCallBofEnabled}
                           putBofEnabled={putBofEnabled}
+                          futBofEnabled={futBofEnabled}  // Make sure this is included
+                          setFutBofEnabled={setFutBofEnabled}  // Make sure this is included
                           setPutBofEnabled={setPutBofEnabled}
                           handleBuyOption={handleBuyOption}
                           handleCallPriceFocus={handleCallPriceFocus}
                           handleCallPriceBlur={handleCallPriceBlur}
                           handlePutPriceFocus={handlePutPriceFocus}
+                          handleFutPriceFocus={handleFutPriceFocus}  // Make sure this is included
+                          handleFutPriceBlur={handleFutPriceBlur}  // Make sure this is included
                           handlePutPriceBlur={handlePutPriceBlur}
                           openOrders={openOrders}
                           handleCancelOrderWrapper={handleCancelOrderWrapper}
@@ -471,6 +562,21 @@ const modifyOrder = async () => {
                     </Card>
                   </div>
 
+                  {/* Future Info Card */}
+                  <div className="w-[95vw] h-full flex-shrink-0 p-2">
+                    <Card className="h-full">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Future Info</CardTitle>
+                      </CardHeader>
+                      <CardContent className="h-[calc(100%-4rem)] overflow-auto p-3">
+                        <div className="space-y-2">
+                          <div>Symbol: {atmFuture.symbol || "Not available"}</div>
+                          <div>Token: {atmFuture.token || "Not available"}</div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
                   {/* Price Table Card */}
                   <div className="w-[95vw] h-full flex-shrink-0 p-2">
                     <Card className="h-full">
@@ -486,9 +592,10 @@ const modifyOrder = async () => {
               </div>
             </div>
 
-            {/* Swipe indicators for mobile */}
+            {/* Swipe indicators for mobile - updated for 5 cards */}
             <div className="lg:hidden flex justify-center space-x-2 py-2 bg-gray-50">
               <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+              <div className="w-2 h-2 rounded-full bg-gray-300"></div>
               <div className="w-2 h-2 rounded-full bg-gray-300"></div>
               <div className="w-2 h-2 rounded-full bg-gray-300"></div>
               <div className="w-2 h-2 rounded-full bg-gray-300"></div>

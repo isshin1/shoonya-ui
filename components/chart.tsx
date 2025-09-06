@@ -16,11 +16,14 @@ import { fetchHistoricalData } from "@/app/api/chartData"
 interface RealTimeChartWithTimeProps {
   atmCallSymbol: string
   atmPutSymbol: string
-  currentTab: "call" | "put"
+  atmFutureSymbol: string  // Add future symbol prop
+  currentTab: "fut" | "call" | "put"   // Add future to tab options
   atmCallPrice: number
   atmPutPrice: number
+  atmFuturePrice?: number  // Add future price prop
   atmCallTt: number
   atmPutTt: number
+  atmFutureTt?: number  // Add future timestamp prop
 }
 
 const convertToIST = (timestamp: number): Date => {
@@ -50,11 +53,14 @@ function isEmpty(value: string) {
 export function RealTimeChart({
   atmCallSymbol,
   atmPutSymbol,
+  atmFutureSymbol,  // Add future symbol
   currentTab,
   atmCallPrice,
   atmPutPrice,
+  atmFuturePrice,  // Add future price
   atmCallTt,
   atmPutTt,
+  atmFutureTt,  // Add future timestamp
 }: RealTimeChartWithTimeProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -74,6 +80,7 @@ export function RealTimeChart({
   // Add refs to track last processed prices and timestamps
   const lastProcessedCallRef = useRef<{ price: number; tt: number }>({ price: 0, tt: 0 })
   const lastProcessedPutRef = useRef<{ price: number; tt: number }>({ price: 0, tt: 0 })
+  const lastProcessedFutureRef = useRef<{ price: number; tt: number }>({ price: 0, tt: 0 })  // Add future tracking
 
   const createNewSeries = useCallback((symbol: string) => {
     if (!chartRef.current) return null
@@ -82,19 +89,34 @@ export function RealTimeChart({
       chartRef.current.removeSeries(seriesRef.current)
     }
 
+    // Determine series title based on symbol type
+    let title = "Unknown"
+    let upColor = "#148564"
+    let downColor = "#DB542A"
+    
+    if (symbol.includes("C") || symbol.toLowerCase().includes("call")) {
+      title = "Call"
+    } else if (symbol.includes("P") || symbol.toLowerCase().includes("put")) {
+      title = "Put"
+    } else if (symbol.toLowerCase().includes("fut") || currentTab === "fut") {
+      title = "Future"
+      upColor = "#2563eb"  // Blue for futures
+      downColor = "#dc2626"  // Red for futures
+    }
+
     const newSeries = chartRef.current.addCandlestickSeries({
-      upColor: "#148564",
-      downColor: "#DB542A",
+      upColor,
+      downColor,
       borderVisible: false,
-      wickUpColor: "#148564",
-      wickDownColor: "#DB542A",
-      title: symbol.includes("C") ? "Call" : "Put",
+      wickUpColor: upColor,
+      wickDownColor: downColor,
+      title,
       visible: true,
     })
 
     seriesRef.current = newSeries
     return newSeries
-  }, [])
+  }, [currentTab])
 
   const fetchDataAndCreateSeries = useCallback(
     async (symbol: string) => {
@@ -124,6 +146,7 @@ export function RealTimeChart({
         // Reset price tracking for new symbol
         lastProcessedCallRef.current = { price: 0, tt: 0 }
         lastProcessedPutRef.current = { price: 0, tt: 0 }
+        lastProcessedFutureRef.current = { price: 0, tt: 0 }
 
         console.log(`Chart series created and data set for ${symbol}`)
       } catch (error) {
@@ -295,23 +318,41 @@ export function RealTimeChart({
     }
   }, [isMounted])
 
-  // Handle symbol changes and initial load
+  // Handle symbol changes and initial load - Updated to include future
   useEffect(() => {
     if (isInitialized) {
-      const symbol = currentTab === "call" ? atmCallSymbol : atmPutSymbol
+      let symbol = ""
+      if (currentTab === "call") {
+        symbol = atmCallSymbol
+      } else if (currentTab === "put") {
+        symbol = atmPutSymbol
+      } else if (currentTab === "fut") {
+        symbol = atmFutureSymbol
+      }
+      console.log("########### fut tab ##########")
+      console.log(symbol)
       if (symbol && symbol !== currentSymbolRef.current) {
         console.log("Symbol changed, fetching new data:", symbol)
         fetchDataAndCreateSeries(symbol)
       }
     }
-  }, [isInitialized, currentTab, atmCallSymbol, atmPutSymbol, fetchDataAndCreateSeries])
+  }, [isInitialized, currentTab, atmCallSymbol, atmPutSymbol, atmFutureSymbol, fetchDataAndCreateSeries])
 
-  // Handle watermark updates
+  // Handle watermark updates - Updated to include future
   useEffect(() => {
     if (chartRef.current && isInitialized) {
+      let watermarkText = ""
+      if (currentTab === "call") {
+        watermarkText = "Call Option"
+      } else if (currentTab === "put") {
+        watermarkText = "Put Option"
+      } else if (currentTab === "fut") {
+        watermarkText = "Future"
+      }
+      
       chartRef.current.applyOptions({
         watermark: {
-          text: currentTab === "call" ? "Call Option" : "Put Option",
+          text: watermarkText,
           visible: true,
           fontSize: windowWidth < 768 ? 18 : 24, // Smaller font on mobile
           horzAlign: "center",
@@ -342,6 +383,17 @@ export function RealTimeChart({
       }
     }
   }, [isInitialized, currentTab, atmPutPrice, atmPutTt, atmPutSymbol, updateChartData])
+
+  // Handle future price updates - New effect for future data
+  useEffect(() => {
+    if (isInitialized && atmFuturePrice && atmFutureTt && currentTab === "fut") {
+      const lastProcessed = lastProcessedFutureRef.current
+      if (atmFuturePrice !== lastProcessed.price || atmFutureTt !== lastProcessed.tt) {
+        updateChartData(atmFutureSymbol, atmFuturePrice, atmFutureTt)
+        lastProcessedFutureRef.current = { price: atmFuturePrice, tt: atmFutureTt }
+      }
+    }
+  }, [isInitialized, currentTab, atmFuturePrice, atmFutureTt, atmFutureSymbol, updateChartData])
 
   // Enhanced resize handler for mobile responsiveness
   useEffect(() => {
@@ -385,6 +437,14 @@ export function RealTimeChart({
     return () => window.removeEventListener("resize", handleResize)
   }, [isInitialized])
 
+  // Get current symbol for display
+  const getCurrentSymbol = () => {
+    if (currentTab === "call") return atmCallSymbol
+    if (currentTab === "put") return atmPutSymbol
+    if (currentTab === "fut") return atmFutureSymbol
+    return ""
+  }
+
   return (
     <Card className="w-full h-full  border-none shadow-none rounded-none">
       <CardHeader className="p-2 md:p-4 border-none">
@@ -408,7 +468,7 @@ export function RealTimeChart({
           ) : !isInitialized ? (
             <div className="flex items-center justify-center w-full h-full">
               <p className="text-sm md:text-base px-4 text-center">
-                Initializing chart... {currentTab === "call" ? atmCallSymbol : atmPutSymbol}
+                Initializing chart... {getCurrentSymbol()}
               </p>
             </div>
           ) : null}

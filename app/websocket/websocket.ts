@@ -4,7 +4,6 @@ import { API_BASE_URL } from '@/utils/env';
 import { WEBSOCKET_BASE_URL } from '@/utils/env';
 import { fetchWithAuth } from '@/app/lib/api';
 
-
 let socket: WebSocket | null = null;
 let updateDataCallback: ((message: any) => void) | null = null;
 
@@ -16,40 +15,49 @@ export function initializeWebSocket(callback: (message: any) => void) {
 
   socket = new WebSocket(`ws://${WEBSOCKET_BASE_URL}/ws`);
 
-
-socket.onopen = async () => {
-  sendMessage("frontend connected");
-  console.log('WebSocket connection established, fetching new data');
-  
-  try {
-    const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/firstFetch`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+  socket.onopen = async () => {
+    sendMessage("frontend connected");
+    console.log('WebSocket connection established, fetching new data');
     
-    if (response.ok) {
-      const data = await response.json();
-      console.log('First fetch successful:', data);
-    } else {
-      console.error('First fetch failed:', response.status);
+    try {
+      const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/firstFetch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('First fetch successful:', data);
+      } else {
+        console.error('First fetch failed:', response.status);
+      }
+    } catch (error) {
+      console.error('Error during first fetch:', error);
     }
-  } catch (error) {
-    console.error('Error during first fetch:', error);
-  }
-};
+  };
 
   const singleQuoteRegex = /'/g;
-
+  
   socket.onmessage = (event) => {
     // console.log(` event is ${event.data}`)
     const message = JSON.parse(event.data)
     // const message = JSON.parse(event.data.replace(singleQuoteRegex, '"'));
+    
+    // Log future data specifically for debugging
+    if (message.type === 'fut') {
+      console.log('Received future data:', {
+        type: message.type,
+        token: message.token,
+        symbol: message.tsym
+      });
+    }
+    
     if (typeof callback === 'function') {
       callback(message);
     }
-
+    
     if (message.type === 'toast') {
       toast({
         title: message.title,
@@ -99,3 +107,15 @@ export function unsubscribeFromRealTimeData(symbol: string) {
   sendMessage({ type: 'unsubscribe', symbol });
 }
 
+// Optional: Add specific future-related functions
+export function subscribeToFutureData(futureSymbol: string) {
+  sendMessage({ type: 'subscribe_future', symbol: futureSymbol });
+}
+
+export function unsubscribeFromFutureData(futureSymbol: string) {
+  sendMessage({ type: 'unsubscribe_future', symbol: futureSymbol });
+}
+
+export function requestFutureData() {
+  sendMessage({ type: 'request_future_data' });
+}

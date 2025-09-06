@@ -56,7 +56,7 @@ export async function fetchOptionPrices(symbols: OptionSymbols): Promise<OptionP
 }
 
 export const buyOption = async (
-  type: "call" | "put",
+  type: "fut" | "call" | "put",
   orderType: OrderType,
   price: number,
   token: string,

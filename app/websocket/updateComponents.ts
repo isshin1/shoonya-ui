@@ -41,8 +41,8 @@ export function updateData(
     // setT3Progress,
   }: UpdateDataProps,
 ) {
-  console.log(`message from websocket ${message}`)
-  console.log(`message type ${message.type}`)
+  // console.log(`message from websocket ${message}`)
+  // console.log(`message type ${message.type}`)
   
   if (message.type === "atm") {
     console.log(`Received ATM update: call token=${message.ceToken}, put token=${message.peToken}`)

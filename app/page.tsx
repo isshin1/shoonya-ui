@@ -217,7 +217,7 @@ const modifyOrder = async () => {
   setIsLoading((prev) => ({ ...prev, modifyOrder: true }))
   setIsModifyOrderOpen(false)
   try {
-    const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/notr/${selectedOrder.orderId}/${newPrice}`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/modifyOrder/${selectedOrder.orderId}/${newPrice}`, {
       method: 'POST'
     })
     if (response.ok) {

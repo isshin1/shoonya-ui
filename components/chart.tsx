@@ -1,44 +1,4 @@
-{/* Test click detection */}
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                console.log('=== DIAGNOSTIC INFO ===');
-                console.log('Chart ref exists:', !!chartRef.current);
-                console.log('Container ref exists:', !!chartContainerRef.current);
-                console.log('Is initialized:', isInitialized);
-                console.log('Drawing mode:', isDrawingMode);
-                console.log('Drawing state:', drawingState);
-                console.log('Series ref exists:', !!seriesRef.current);
-                
-                // Test if we can get time and price manually
-                if (chartRef.current && seriesRef.current) {
-                  console.log('=== MANUAL COORDINATE TEST ===');
-                  try {
-                    // Test center of chart
-                    const container = chartContainerRef.current;
-                    if (container) {
-                      const rect = container.getBoundingClientRect();
-                      const centerX = rect.width / 2;
-                      const centerY = rect.height / 2;
-                      
-                      const timeScale = chartRef.current.timeScale();
-                      const testTime = timeScale.coordinateToTime(centerX);
-                      const testPrice = seriesRef.current.coordinateToPrice(centerY);
-                      
-                      console.log('Center coordinates test:', {
-                        centerX, centerY, testTime, testPrice
-                      });
-                    }
-                  } catch (error) {
-                    console.error('Manual test failed:', error);
-                  }
-                }
-              }}
-              className="text-xs"
-            >
-              Diagnose
-            </Button>
+"use client"
 
 import { useEffect, useRef, useCallback, useState } from "react"
 import {
@@ -49,37 +9,26 @@ import {
   type UTCTimestamp,
   LineStyle,
   ColorType,
-  type MouseEventParams,
-  type Time,
 } from "lightweight-charts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Pencil, Eraser } from "lucide-react"
 import { fetchHistoricalData } from "@/app/api/chartData"
 
 interface RealTimeChartWithTimeProps {
   atmCallSymbol: string
   atmPutSymbol: string
-  atmFutureSymbol: string
-  currentTab: "fut" | "call" | "put"
+  atmFutureSymbol: string  // Add future symbol prop
+  currentTab: "fut" | "call" | "put"   // Add future to tab options
   atmCallPrice: number
   atmPutPrice: number
-  atmFuturePrice?: number
+  atmFuturePrice?: number  // Add future price prop
   atmCallTt: number
   atmPutTt: number
-  atmFutureTt?: number
-}
-
-interface TrendLine {
-  id: string
-  series: ISeriesApi<"Line">
-  startPoint: { time: Time; price: number }
-  endPoint: { time: Time; price: number }
+  atmFutureTt?: number  // Add future timestamp prop
 }
 
 const convertToIST = (timestamp: number): Date => {
   const date = new Date(timestamp * 1000)
-  return new Date(date.getTime() + 5.5 * 60 * 60 * 1000 * 0)
+  return new Date(date.getTime() + 5.5 * 60 * 60 * 1000 * 0) // Add 5 hours and 30 minutes for IST
 }
 
 const formatTimeIST = (timestamp: UTCTimestamp): string => {
@@ -104,14 +53,14 @@ function isEmpty(value: string) {
 export function RealTimeChart({
   atmCallSymbol,
   atmPutSymbol,
-  atmFutureSymbol,
+  atmFutureSymbol,  // Add future symbol
   currentTab,
   atmCallPrice,
   atmPutPrice,
-  atmFuturePrice,
+  atmFuturePrice,  // Add future price
   atmCallTt,
   atmPutTt,
-  atmFutureTt,
+  atmFutureTt,  // Add future timestamp
 }: RealTimeChartWithTimeProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -124,128 +73,14 @@ export function RealTimeChart({
   const currentSymbolRef = useRef<string>("")
   const [windowWidth, setWindowWidth] = useState(0)
 
-  // Drawing tool states
-  const [isDrawingMode, setIsDrawingMode] = useState(false)
-  const [trendLines, setTrendLines] = useState<TrendLine[]>([])
-  const [drawingState, setDrawingState] = useState<{
-    isDrawing: boolean
-    startPoint: { time: Time; price: number } | null
-  }>({
-    isDrawing: false,
-    startPoint: null
-  })
-
-  const lastProcessedCallRef = useRef<{ price: number; tt: number }>({ price: 0, tt: 0 })
-  const lastProcessedPutRef = useRef<{ price: number; tt: number }>({ price: 0, tt: 0 })
-  const lastProcessedFutureRef = useRef<{ price: number; tt: number }>({ price: 0, tt: 0 })
-
   useEffect(() => {
     setWindowWidth(window.innerWidth)
   }, [])
 
-  // Create a trend line using line series (the supported workaround)
-  const createTrendLine = useCallback((startPoint: { time: Time; price: number }, endPoint: { time: Time; price: number }) => {
-    if (!chartRef.current) return null
-
-    console.log('Creating trend line:', { startPoint, endPoint });
-
-    // Create a line series for the trend line
-    const lineSeries = chartRef.current.addLineSeries({
-      color: '#FF6B6B',
-      lineWidth: 2,
-      lineStyle: LineStyle.Solid,
-      crosshairMarkerVisible: false,
-      lastValueVisible: false,
-      priceLineVisible: false,
-      title: 'Trend Line',
-    })
-
-    // Set data with exactly 2 points to create a straight line
-    const lineData = [
-      { time: startPoint.time, value: startPoint.price },
-      { time: endPoint.time, value: endPoint.price },
-    ]
-
-    lineSeries.setData(lineData)
-
-    const trendLine: TrendLine = {
-      id: `trend-${Date.now()}`,
-      series: lineSeries,
-      startPoint,
-      endPoint
-    }
-
-    return trendLine
-  }, [])
-
-  // Handle chart clicks for drawing
-  const handleChartClick = useCallback((param: MouseEventParams) => {
-    if (!isDrawingMode || !param.time || !param.point || !seriesRef.current) {
-      return
-    }
-
-    console.log('Chart clicked in drawing mode:', param);
-
-    // Convert screen coordinates to price
-    const price = seriesRef.current.coordinateToPrice(param.point.y)
-    if (price === null || price === undefined) {
-      console.log('Could not get price from coordinates');
-      return
-    }
-
-    console.log('Price at click:', price, 'Time:', param.time);
-
-    if (!drawingState.isDrawing) {
-      // Start drawing - set the first point
-      setDrawingState({
-        isDrawing: true,
-        startPoint: { time: param.time, price }
-      })
-      console.log('Started drawing, first point set');
-    } else if (drawingState.startPoint) {
-      // Finish drawing - create the trend line
-      const endPoint = { time: param.time, price }
-      console.log('Finishing drawing, end point:', endPoint);
-
-      const trendLine = createTrendLine(drawingState.startPoint, endPoint)
-      if (trendLine) {
-        setTrendLines(prev => [...prev, trendLine])
-        console.log('Trend line created successfully');
-      } else {
-        console.log('Failed to create trend line');
-      }
-
-      // Reset drawing state
-      setDrawingState({
-        isDrawing: false,
-        startPoint: null
-      })
-    }
-  }, [isDrawingMode, drawingState, createTrendLine])
-
-  // Clear all trend lines
-  const clearAllTrendLines = useCallback(() => {
-    console.log('Clearing all trend lines');
-    trendLines.forEach(trendLine => {
-      if (chartRef.current) {
-        chartRef.current.removeSeries(trendLine.series)
-      }
-    })
-    setTrendLines([])
-    setDrawingState({ isDrawing: false, startPoint: null })
-  }, [trendLines])
-
-  // Toggle drawing mode
-  const toggleDrawingMode = useCallback(() => {
-    const newMode = !isDrawingMode
-    console.log('Toggling drawing mode:', newMode);
-    setIsDrawingMode(newMode)
-    
-    // Reset drawing state when turning off drawing mode
-    if (!newMode) {
-      setDrawingState({ isDrawing: false, startPoint: null })
-    }
-  }, [isDrawingMode])
+  // Add refs to track last processed prices and timestamps
+  const lastProcessedCallRef = useRef<{ price: number; tt: number }>({ price: 0, tt: 0 })
+  const lastProcessedPutRef = useRef<{ price: number; tt: number }>({ price: 0, tt: 0 })
+  const lastProcessedFutureRef = useRef<{ price: number; tt: number }>({ price: 0, tt: 0 })  // Add future tracking
 
   const createNewSeries = useCallback((symbol: string) => {
     if (!chartRef.current) return null
@@ -254,6 +89,7 @@ export function RealTimeChart({
       chartRef.current.removeSeries(seriesRef.current)
     }
 
+    // Determine series title based on symbol type
     let title = "Unknown"
     let upColor = "#148564"
     let downColor = "#DB542A"
@@ -264,8 +100,8 @@ export function RealTimeChart({
       title = "Put"
     } else if (symbol.toLowerCase().includes("fut") || currentTab === "fut") {
       title = "Future"
-      upColor = "#2563eb"
-      downColor = "#dc2626"
+      upColor = "#2563eb"  // Blue for futures
+      downColor = "#dc2626"  // Red for futures
     }
 
     const newSeries = chartRef.current.addCandlestickSeries({
@@ -298,15 +134,16 @@ export function RealTimeChart({
 
         setHistoricalData(data)
 
-        // Clear existing trend lines when switching symbols
-        clearAllTrendLines()
-
+        // Create new series
         const newSeries = createNewSeries(symbol)
         if (newSeries) {
           newSeries.setData(data)
         }
 
+        // Reset last update tracker for new symbol
         lastUpdateRef.current = 0
+
+        // Reset price tracking for new symbol
         lastProcessedCallRef.current = { price: 0, tt: 0 }
         lastProcessedPutRef.current = { price: 0, tt: 0 }
         lastProcessedFutureRef.current = { price: 0, tt: 0 }
@@ -317,7 +154,7 @@ export function RealTimeChart({
         setError(`Failed to initialize chart data for ${symbol}`)
       }
     },
-    [createNewSeries, clearAllTrendLines],
+    [createNewSeries],
   )
 
   const updateChartData = useCallback(
@@ -329,6 +166,7 @@ export function RealTimeChart({
       const currentTime = timestamp
       const threeMinuteTimestamp = (Math.floor(currentTime / (3 * 60)) * 3 * 60) as UTCTimestamp
 
+      // Ensure we're not processing duplicate or old data
       if (threeMinuteTimestamp < lastUpdateRef.current) {
         console.log("Skipping update: Old or duplicate data", {
           newTimestamp: threeMinuteTimestamp,
@@ -337,10 +175,12 @@ export function RealTimeChart({
         return
       }
 
+      // Get current historical data from state
       setHistoricalData(currentData => {
         const lastCandle = currentData[currentData.length - 1]
 
         if (!lastCandle || threeMinuteTimestamp > lastCandle.time) {
+          // Create a new candle
           console.log("Adding new candle")
           const newCandle: CandlestickData = {
             time: threeMinuteTimestamp,
@@ -352,6 +192,7 @@ export function RealTimeChart({
           seriesRef.current?.update(newCandle)
           return [...currentData, newCandle]
         } else if (threeMinuteTimestamp === lastCandle.time) {
+          // Update the existing candle
           const updatedCandle: CandlestickData = {
             time: lastCandle.time,
             open: lastCandle.open,
@@ -401,9 +242,10 @@ export function RealTimeChart({
     if (isMounted && chartContainerRef.current && !chartRef.current) {
       console.log("Creating new chart instance")
       
+      // Get responsive dimensions
       const container = chartContainerRef.current
-      const width = container.clientWidth || windowWidth - 32
-      const height = container.clientHeight || Math.min(400, window.innerHeight * 0.4)
+      const width = container.clientWidth || windowWidth - 32 // Account for padding
+      const height = container.clientHeight || Math.min(400, window.innerHeight * 0.4) // Mobile-friendly height
       
       chartRef.current = createChart(container, {
         width,
@@ -416,18 +258,19 @@ export function RealTimeChart({
           vertLines: { 
             color: "#e0e0e0", 
             style: LineStyle.Dashed,
-            visible: windowWidth > 768
+            visible: windowWidth > 768 // Hide on mobile for cleaner look
           },
           horzLines: { 
             color: "#e0e0e0", 
             style: LineStyle.Dashed,
-            visible: windowWidth > 768
+            visible: windowWidth > 768 // Hide on mobile for cleaner look
           },
         },
         timeScale: {
           timeVisible: true,
           secondsVisible: false,
           tickMarkFormatter: (time: UTCTimestamp) => formatTimeIST(time),
+          // Mobile-specific time scale options
           rightOffset: windowWidth < 768 ? 5 : 12,
           barSpacing: windowWidth < 768 ? 4 : 6,
           minBarSpacing: windowWidth < 768 ? 0.5 : 1,
@@ -447,14 +290,16 @@ export function RealTimeChart({
         localization: {
           timeFormatter: (timestamp: UTCTimestamp) => formatTimeIST(timestamp),
         },
+        // Mobile-specific right price scale options
         rightPriceScale: {
           scaleMargins: {
             top: 0.1,
             bottom: 0.1,
           },
           borderVisible: false,
-          entireTextOnly: windowWidth < 768,
+          entireTextOnly: windowWidth < 768, // Show only full price labels on mobile
         },
+        // Handle touch interactions better on mobile
         handleScroll: {
           mouseWheel: true,
           pressedMouseMove: true,
@@ -468,15 +313,12 @@ export function RealTimeChart({
         },
       })
 
-      // Subscribe to click events for drawing functionality
-      chartRef.current.subscribeClick(handleChartClick)
-
       setIsInitialized(true)
-      console.log("Chart initialized with click handler")
+      console.log("chart is initialised")
     }
-  }, [isMounted, handleChartClick, windowWidth])
+  }, [isMounted])
 
-  // Handle symbol changes and initial load
+  // Handle symbol changes and initial load - Updated to include future
   useEffect(() => {
     if (isInitialized) {
       let symbol = ""
@@ -487,7 +329,8 @@ export function RealTimeChart({
       } else if (currentTab === "fut") {
         symbol = atmFutureSymbol
       }
-      
+      console.log("########### fut tab ##########")
+      console.log(symbol)
       if (symbol && symbol !== currentSymbolRef.current) {
         console.log("Symbol changed, fetching new data:", symbol)
         fetchDataAndCreateSeries(symbol)
@@ -495,7 +338,7 @@ export function RealTimeChart({
     }
   }, [isInitialized, currentTab, atmCallSymbol, atmPutSymbol, atmFutureSymbol, fetchDataAndCreateSeries])
 
-  // Handle watermark updates
+  // Handle watermark updates - Updated to include future
   useEffect(() => {
     if (chartRef.current && isInitialized) {
       let watermarkText = ""
@@ -511,13 +354,13 @@ export function RealTimeChart({
         watermark: {
           text: watermarkText,
           visible: true,
-          fontSize: windowWidth < 768 ? 18 : 24,
+          fontSize: windowWidth < 768 ? 18 : 24, // Smaller font on mobile
           horzAlign: "center",
           vertAlign: "center",
         },
       })
     }
-  }, [currentTab, isInitialized, windowWidth])
+  }, [currentTab, isInitialized])
 
   // Handle call price updates
   useEffect(() => {
@@ -541,7 +384,7 @@ export function RealTimeChart({
     }
   }, [isInitialized, currentTab, atmPutPrice, atmPutTt, atmPutSymbol, updateChartData])
 
-  // Handle future price updates
+  // Handle future price updates - New effect for future data
   useEffect(() => {
     if (isInitialized && atmFuturePrice && atmFutureTt && currentTab === "fut") {
       const lastProcessed = lastProcessedFutureRef.current
@@ -552,7 +395,7 @@ export function RealTimeChart({
     }
   }, [isInitialized, currentTab, atmFuturePrice, atmFutureTt, atmFutureSymbol, updateChartData])
 
-  // Handle resize
+  // Enhanced resize handler for mobile responsiveness
   useEffect(() => {
     const handleResize = () => {
       if (chartRef.current && chartContainerRef.current) {
@@ -563,35 +406,38 @@ export function RealTimeChart({
         chartRef.current.applyOptions({
           width,
           height,
+          // Update mobile-specific options on resize
           timeScale: {
-            rightOffset: window.innerWidth < 768 ? 5 : 12,
-            barSpacing: window.innerWidth < 768 ? 4 : 6,
-            minBarSpacing: window.innerWidth < 768 ? 0.5 : 1,
+            rightOffset: windowWidth < 768 ? 5 : 12,
+            barSpacing: windowWidth < 768 ? 4 : 6,
+            minBarSpacing: windowWidth < 768 ? 0.5 : 1,
           },
           grid: {
             vertLines: { 
-              visible: window.innerWidth > 768 
+              visible: windowWidth > 768 
             },
             horzLines: { 
-              visible: window.innerWidth > 768 
+              visible: windowWidth > 768 
             },
           },
           rightPriceScale: {
-            entireTextOnly: window.innerWidth < 768,
+            entireTextOnly: windowWidth < 768,
           },
           watermark: {
-            fontSize: window.innerWidth < 768 ? 18 : 24,
+            fontSize: windowWidth < 768 ? 18 : 24,
           },
         })
       }
     }
 
     window.addEventListener("resize", handleResize)
+    // Call immediately to set initial mobile state
     handleResize()
     
     return () => window.removeEventListener("resize", handleResize)
   }, [isInitialized])
 
+  // Get current symbol for display
   const getCurrentSymbol = () => {
     if (currentTab === "call") return atmCallSymbol
     if (currentTab === "put") return atmPutSymbol
@@ -600,46 +446,10 @@ export function RealTimeChart({
   }
 
   return (
-    <Card className="w-full h-full border-none shadow-none rounded-none">
+    <Card className="w-full h-full  border-none shadow-none rounded-none">
       <CardHeader className="p-2 md:p-4 border-none">
         <CardTitle className="flex justify-between items-center text-sm md:text-base">
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Drawing Tools */}
-            <Button
-              variant={isDrawingMode ? "default" : "outline"}
-              size="sm"
-              onClick={toggleDrawingMode}
-              className={`flex items-center gap-1 ${isDrawingMode ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
-            >
-              <Pencil className="w-4 h-4" />
-              {windowWidth > 768 && "Draw Line"}
-            </Button>
-            
-            {trendLines.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={clearAllTrendLines}
-                className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                <Eraser className="w-4 h-4" />
-                {windowWidth > 768 && "Clear Lines"}
-              </Button>
-            )}
-            
-            {isDrawingMode && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded border">
-                  {drawingState.isDrawing ? "Click to set end point" : "Click to set start point"}
-                </span>
-                {trendLines.length > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    {trendLines.length} line{trendLines.length !== 1 ? 's' : ''} drawn
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
+          {/* You can add title content here if needed */}
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0 h-[calc(100%-3rem)] md:h-[calc(100%-5rem)]">
@@ -647,8 +457,8 @@ export function RealTimeChart({
           ref={chartContainerRef} 
           className="w-full h-full min-h-[300px] md:min-h-[400px]"
           style={{
-            minHeight: windowWidth < 768 ? '300px' : '400px',
-            cursor: isDrawingMode ? 'crosshair' : 'default'
+            // Ensure minimum height on mobile
+            minHeight: windowWidth < 768 ? '300px' : '400px'
           }}
         >
           {error ? (

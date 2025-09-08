@@ -24,15 +24,18 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
     console.log('Response status:', response.status);
     
     if (response.status === 401) { // Unauthorized - token likely expired
-      toast({
-        title: "Error",
-        description: "Unauthenticated Request, please login.",
-        variant: "destructive",
-      })
+      // toast({
+      //   title: "Error",
+      //   description: "Unauthenticated Request, please login.",
+      //   variant: "destructive",
+      // })
       console.log('Session expired, please log in again.'); // Fixed: console.log.error -> console.error
       // Uncomment these if you want auto-logout on 401
-      localStorage.removeItem('jwt');
-      // window.dispatchEvent(new Event("logout"));
+      const jwt = localStorage.getItem('jwt');
+      if (jwt !== null) {
+          localStorage.removeItem('jwt');
+          window.dispatchEvent(new Event("logout"));
+      }
     }
     
     return response;

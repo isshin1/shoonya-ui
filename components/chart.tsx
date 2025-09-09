@@ -178,13 +178,13 @@ export function RealTimeChart({
       // Get current historical data from state
       setHistoricalData(currentData => {
         const lastCandle = currentData[currentData.length - 1]
-
+        const prev_close = lastCandle ? lastCandle.close : price
         if (!lastCandle || threeMinuteTimestamp > lastCandle.time) {
           // Create a new candle
           console.log("Adding new candle")
           const newCandle: CandlestickData = {
             time: threeMinuteTimestamp,
-            open: lastCandle.close,
+            open: prev_close,
             high: price,
             low: price,
             close: price,

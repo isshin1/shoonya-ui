@@ -1,9 +1,9 @@
 "use client"
 import { API_BASE_URL } from "@/utils/env"
 
-import  React , {useState, useEffect, useRef, useCallback} from "react"
+import React, { useState, useEffect, useRef, useCallback } from "react"
 
-import {} from "@stitches/react"
+import { } from "@stitches/react"
 import axios from "axios"
 import { useToast } from "@/components/ui/use-toast"
 import { AppSidebar } from "@/components/app-sidebar"
@@ -48,7 +48,9 @@ import { UpdateTargets } from "@/components/UpdateTargets"
 import { OpenOrdersTable } from "@/components/OpenOrdersTable"
 import { TradeModeSelector } from "@/components/TradeModeSelector"
 import OptionTradingPanel from "@/components/OptionTradingPanel"
-import { RealTimeChart } from "@/components/chart"
+// import { RealTimeChart } from "@/components/chart"
+import { RealTimeChart } from "@/components/RealTimeChart"
+
 import { Navbar } from "@/components/Navbar"
 import { AuthDialog } from "@/components/AuthDialog";
 import { fetchWithAuth } from "@/app/lib/api";
@@ -125,7 +127,7 @@ export default function Home() {
   const [lastCallPrice, setLastCallPrice] = useState(0.0);
   const [putPrice, setPutPrice] = useState(0.0)
   const [lastPutPrice, setLastPutPrice] = useState(0.0);
-// Add these state variables:
+  // Add these state variables:
   const [futPrice, setFutPrice] = useState(0.0)
   const [lastFutPrice, setLastFutPrice] = useState(0.0)
   const [futBofEnabled, setFutBofEnabled] = useState(false)
@@ -212,35 +214,35 @@ export default function Home() {
     }, 1000)
   }
 
-const modifyOrder = async () => {
-  if (!selectedOrder) return
-  setIsLoading((prev) => ({ ...prev, modifyOrder: true }))
-  setIsModifyOrderOpen(false)
-  try {
-    const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/modifyOrder/${selectedOrder.orderId}/${newPrice}`, {
-      method: 'POST'
-    })
-    if (response.ok) {
-      toast({
-        title: "Order Modification Sent",
-        description: `Modification request for order ${selectedOrder.orderId} has been sent.`,
+  const modifyOrder = async () => {
+    if (!selectedOrder) return
+    setIsLoading((prev) => ({ ...prev, modifyOrder: true }))
+    setIsModifyOrderOpen(false)
+    try {
+      const response = await fetchWithAuth(`${API_BASE_URL}/tradeapp/modifyOrder/${selectedOrder.orderId}/${newPrice}`, {
+        method: 'POST'
       })
-      fetchOpenOrdersCallback(setOpenOrders, setIsLoading, toast)
-    } else {
-      throw new Error("Failed to send modify order request")
+      if (response.ok) {
+        toast({
+          title: "Order Modification Sent",
+          description: `Modification request for order ${selectedOrder.orderId} has been sent.`,
+        })
+        fetchOpenOrdersCallback(setOpenOrders, setIsLoading, toast)
+      } else {
+        throw new Error("Failed to send modify order request")
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send modify order request. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading((prev) => ({ ...prev, modifyOrder: false }))
+      setSelectedOrder(null)
+      setNewPrice(0)
     }
-  } catch (error: any) {
-    toast({
-      title: "Error",
-      description: error.message || "Failed to send modify order request. Please try again.",
-      variant: "destructive",
-    })
-  } finally {
-    setIsLoading((prev) => ({ ...prev, modifyOrder: false }))
-    setSelectedOrder(null)
-    setNewPrice(0)
   }
-}
 
 
   const handleCancelOrderWrapper = useCallback(
@@ -252,13 +254,13 @@ const modifyOrder = async () => {
 
   useEffect(() => {
     const handleWebSocketMessage = (message: any) => {
-      updateData(message, { 
-        setAtmCall, 
-        setAtmPut, 
+      updateData(message, {
+        setAtmCall,
+        setAtmPut,
         setAtmFuture,  // Add the future setter
-        setOpenOrders, 
-        setPositions, 
-        setTimerLeft 
+        setOpenOrders,
+        setPositions,
+        setTimerLeft
       })
     }
 
@@ -281,7 +283,7 @@ const modifyOrder = async () => {
   const handleBuyOption = async (type: "call" | "put" | "fut", orderType: OrderType, price: number, symbol: string) => {
     let token: string
     let bofEnabled: boolean
-    
+
     if (type === "call") {
       token = atmCall.token.toString()
       bofEnabled = callBofEnabled
@@ -292,10 +294,10 @@ const modifyOrder = async () => {
       token = atmFuture.token.toString()
       bofEnabled = futBofEnabled
     }
-    
+
     const result = await buyOption(type, orderType, price, token, bofEnabled, setIsLoading)
   }
-  
+
 
   useEffect(() => {
     const fetchMarginData = async () => {
@@ -349,7 +351,7 @@ const modifyOrder = async () => {
   };
 
   const handlePutPriceFocus = () => {
-    setPutPrice(Math.round(atmPut.price * 10) / 10 );
+    setPutPrice(Math.round(atmPut.price * 10) / 10);
   };
 
   const handlePutPriceBlur = () => {
@@ -376,7 +378,7 @@ const modifyOrder = async () => {
     <div className="flex h-screen w-screen overflow-hidden">
       <SidebarProvider defaultOpen={false}>
         <div className="flex h-screen w-screen overflow-hidden">
-          <AppSidebar onCollapsedChange={() => {}} />
+          <AppSidebar onCollapsedChange={() => { }} />
           <SidebarInset className="flex flex-col w-full">
             <Navbar
               tradeMode={tradeMode}

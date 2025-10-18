@@ -175,18 +175,40 @@ export function RealTimeChart({
         return
       }
 
+      const isDifferentDay = (timestamp1: number, timestamp2: number): boolean => {
+        const date1 = convertToIST(timestamp1)
+        const date2 = convertToIST(timestamp2)
+        return date1.toDateString() !== date2.toDateString()
+      }
+
+
       // Get current historical data from state
       setHistoricalData(currentData => {
         const lastCandle = currentData[currentData.length - 1]
-        const prev_close = lastCandle ? lastCandle.close : price
+        
         if (!lastCandle || threeMinuteTimestamp > lastCandle.time) {
+          // Determine the opening price for the new candle
+          let openPrice = price // Default to current price if no previous data
+          
+          if (lastCandle) {
+            // Check if this is a new day
+            if (isDifferentDay(lastCandle.time, threeMinuteTimestamp)) {
+              // New day: open at previous day's closing price
+              openPrice = lastCandle.close
+              console.log("New day detected - Opening at previous day's close:", openPrice)
+            } else {
+              // Same day: open at previous candle's close
+              openPrice = lastCandle.close
+            }
+          }
+          
           // Create a new candle
-          console.log("Adding new candle")
+          console.log("Adding new candle with open price:", openPrice)
           const newCandle: CandlestickData = {
             time: threeMinuteTimestamp,
-            open: prev_close,
-            high: price,
-            low: price,
+            open: openPrice,
+            high: Math.max(openPrice, price),
+            low: Math.min(openPrice, price),
             close: price,
           }
           seriesRef.current?.update(newCandle)
@@ -195,7 +217,7 @@ export function RealTimeChart({
           // Update the existing candle
           const updatedCandle: CandlestickData = {
             time: lastCandle.time,
-            open: lastCandle.open,
+            open: lastCandle.open, // Keep original open price
             high: Math.max(lastCandle.high, price),
             low: Math.min(lastCandle.low, price),
             close: price,
@@ -256,7 +278,7 @@ export function RealTimeChart({
         },
         grid: {
           vertLines: { 
-            color: "#e0e0e0", 
+            color: "#e0e0e0",   
             style: LineStyle.Dashed,
             visible: windowWidth > 768 // Hide on mobile for cleaner look
           },
